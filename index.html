@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>エンドポータル座標計算</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			--bg:      #0d0f14;
+			--surface: #161920;
+			--surf2:   #1e2130;
+			--border:  #2a2f45;
+			--border2: #3a4060;
+			--accent:  #7c5cfc;
+			--acc2:    #a07ff5;
+			--glow:    rgba(124,92,252,0.25);
+			--cyan:    #00c9b1;
+			--cyan2:   #4ee8d5;
+			--text:    #e8eaf0;
+			--text2:   #9aa0b8;
+			--text3:   #5a6080;
+			--ok:      #4caf7d;
+			--warn:    #e0a050;
+			--ng:      #e05252;
+			--font-mono: 'Share Tech Mono', monospace;
+			--font-body: 'Noto Sans JP', sans-serif;
+			--r:  8px;
+			--rl: 14px;
+		}
+		* { box-sizing: border-box; margin: 0; padding: 0; }
+
+		body {
+			background: var(--bg);
+			color: var(--text);
+			font-family: var(--font-body);
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			padding: 2rem 1rem 4rem;
+		}
+
+		.starfield { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+		.star { position: absolute; background: #fff; border-radius: 50%; animation: twinkle var(--d,3s) ease-in-out infinite alternate; }
+		@keyframes twinkle { from{opacity:.05} to{opacity:.5} }
+
+		.container { position: relative; z-index: 1; width: 100%; max-width: 860px; }
+
+		header { text-align: center; margin-bottom: 2.5rem; }
+		.logo { display: inline-flex; align-items: center; gap: 14px; margin-bottom: .75rem; }
+		.eye-icon { width: 52px; height: 52px; filter: drop-shadow(0 0 12px var(--cyan)); }
+		h1 { font-family: var(--font-mono); font-size: 1.75rem; color: var(--acc2); letter-spacing: .04em; text-shadow: 0 0 20px var(--glow); }
+		.subtitle { font-size: .85rem; color: var(--text2); margin-top: .4rem; }
+
+		.card {
+			background: var(--surface);
+			border: 1px solid var(--border);
+			border-radius: var(--rl);
+			padding: 1.5rem;
+			margin-bottom: 1.25rem;
+		}
+		.card-title {
+			font-family: var(--font-mono);
+			font-size: .78rem;
+			color: var(--cyan);
+			letter-spacing: .12em;
+			text-transform: uppercase;
+			margin-bottom: 1.25rem;
+			display: flex; align-items: center; gap: 8px;
+		}
+		.card-title::before {
+			content: ''; display: block; width: 4px; height: 14px;
+			background: var(--cyan); border-radius: 2px;
+			box-shadow: 0 0 8px var(--cyan);
+		}
+
+		.throw-table-wrap { overflow-x: auto; }
+		table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: .88rem; }
+		thead th {
+			background: var(--surf2); color: var(--text2);
+			font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
+			padding: .6rem .8rem; text-align: left; border-bottom: 1px solid var(--border);
+		}
+		tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
+		tbody tr:last-child { border-bottom: none; }
+		tbody tr:hover { background: var(--surf2); }
+		tbody td { padding: .55rem .8rem; color: var(--text); vertical-align: middle; }
+		.td-num { color: var(--text3); font-size: .78rem; width: 36px; }
+		.td-coord input {
+			width: 105px;
+			background: transparent; border: none;
+			border-bottom: 1px solid var(--border2); border-radius: 0;
+			padding: .2rem .3rem;
+			font-family: var(--font-mono); font-size: .88rem; color: var(--text);
+			outline: none;
+		}
+		.td-coord input:focus { border-bottom-color: var(--accent); background: rgba(124,92,252,.06); }
+
+		.btn-row { display: flex; gap: .75rem; margin-top: 1rem; flex-wrap: wrap; }
+		.btn {
+			border: 1px solid var(--border2); border-radius: var(--r);
+			font-family: var(--font-body); font-size: .85rem;
+			padding: .55rem 1.1rem; cursor: pointer; transition: all .18s;
+			display: inline-flex; align-items: center; gap: 6px;
+		}
+		.btn-add { background: rgba(0,201,177,.08); color: var(--cyan); border-color: rgba(0,201,177,.3); }
+		.btn-add:hover { background: rgba(0,201,177,.18); border-color: var(--cyan); }
+		.btn-calc {
+			background: var(--accent); color: #fff; border-color: var(--accent);
+			font-weight: 500; padding: .55rem 1.6rem;
+			box-shadow: 0 0 18px var(--glow);
+		}
+		.btn-calc:hover { background: var(--acc2); border-color: var(--acc2); box-shadow: 0 0 28px rgba(124,92,252,.45); transform: translateY(-1px); }
+		.btn-calc:active { transform: translateY(0); }
+		.btn-clear { background: transparent; color: var(--text3); border-color: var(--border); }
+		.btn-clear:hover { color: var(--ng); border-color: rgba(224,82,82,.4); background: rgba(224,82,82,.06); }
+
+		.del-btn { background: none; border: none; color: var(--text3); cursor: pointer; padding: 4px 8px; border-radius: var(--r); font-size: 1rem; transition: color .2s, background .2s; }
+		.del-btn:hover { color: var(--ng); background: rgba(224,82,82,.1); }
+
+		.error-msg, .warn-msg { border-radius: var(--r); padding: .75rem 1rem; font-size: .85rem; margin-top: .75rem; display: none; }
+		.error-msg { background: rgba(224,82,82,.1); border: 1px solid rgba(224,82,82,.35); color: #f08080; }
+		.error-msg.show { display: block; }
+		.warn-msg { background: rgba(224,160,80,.1); border: 1px solid rgba(224,160,80,.35); color: #e0c080; }
+		.warn-msg.show { display: block; }
+
+		.throw-note { font-size: .76rem; color: var(--text3); margin-top: .65rem; line-height: 1.65; }
+		.help-text { font-size: .78rem; color: var(--text3); line-height: 1.65; }
+		.help-text strong { color: var(--text2); }
+
+		/* 結果カード */
+		.result-card {
+			background: var(--surface); border: 1px solid var(--accent); border-radius: var(--rl);
+			padding: 1.5rem; margin-bottom: 1.25rem;
+			box-shadow: 0 0 30px var(--glow);
+			display: none;
+		}
+		.result-card.show { display: block; animation: fadeIn .35s ease; }
+		@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+		@keyframes portalSpin {
+			from { filter: drop-shadow(0 0 12px #9b59b6) hue-rotate(0deg); }
+			to   { filter: drop-shadow(0 0 12px #7c5cfc) hue-rotate(30deg); }
+		}
+
+		.result-top { display: flex; align-items: center; gap: 1.4rem; flex-wrap: wrap; }
+		.portal-icon { width: 60px; height: 60px; flex-shrink: 0; animation: portalSpin 4s linear infinite; }
+		.result-label { font-size: .75rem; color: var(--text2); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .35rem; }
+		.result-value { font-family: var(--font-mono); font-size: 1.65rem; color: var(--acc2); text-shadow: 0 0 18px var(--glow); letter-spacing: .04em; }
+
+		.result-meta { margin-top: 1.1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: .8rem; }
+		.meta-item { background: var(--surf2); border-radius: var(--r); padding: .7rem 1rem; }
+		.meta-label { font-size: .72rem; color: var(--text3); letter-spacing: .06em; margin-bottom: .25rem; }
+		.meta-value { font-family: var(--font-mono); font-size: .95rem; color: var(--text); }
+
+		.confidence-bar-wrap { margin-top: 1.1rem; }
+		.confidence-label { display: flex; justify-content: space-between; font-size: .78rem; color: var(--text2); margin-bottom: .4rem; }
+		.confidence-bar { height: 6px; background: var(--surf2); border-radius: 3px; overflow: hidden; }
+		.confidence-fill { height: 100%; border-radius: 3px; transition: width .6s ease; }
+
+		.debug-section { margin-top: 1.1rem; border-top: 1px solid var(--border); padding-top: .9rem; }
+		.debug-toggle { background: none; border: none; color: var(--text2); font-size: .8rem; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 6px; transition: color .2s; font-family: var(--font-body); }
+		.debug-toggle:hover { color: var(--text); }
+		.debug-content { display: none; margin-top: .8rem; }
+		.debug-content.open { display: block; }
+		.debug-table th { color: var(--text3); font-weight: 400; font-size: .72rem; }
+		.debug-table td { color: var(--text2); padding: .35rem .8rem; }
+		.angle-badge { display: inline-block; background: rgba(0,201,177,.12); color: var(--cyan2); border-radius: 4px; padding: 1px 6px; font-size: .8rem; }
+
+		/* グラフカード */
+		.graph-card { display: none; }
+		.graph-card.show { display: block; animation: fadeIn .3s ease; }
+
+		.section-divider { border: none; border-top: 1px solid var(--border); margin: 1.75rem 0; }
+
+		.credit {
+			margin-top: 2.5rem;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 0.35rem;
+			padding: 1.2rem;
+			border-top: 1px solid var(--border);
+		}
+		.credit-label {
+			font-family: var(--font-mono);
+			font-size: .65rem;
+			letter-spacing: .2em;
+			color: var(--text3);
+		}
+		.credit-name {
+			font-family: var(--font-mono);
+			font-size: 1.45rem;
+			letter-spacing: .18em;
+			/* 通常時はテキストを完全に透明化し、背景色と一体化させる。
+			   ドラッグして選択したときだけ ::selection で色を出して読めるようにする。 */
+			color: transparent;
+			-webkit-text-fill-color: transparent;
+			text-shadow: none;
+			user-select: text;
+		}
+		.credit-name::selection {
+			color: var(--acc2);
+			background: rgba(124,92,252,.35);
+			text-shadow: 0 0 16px var(--glow);
+		}
+		.credit-desc {
+			font-size: .75rem;
+			color: var(--text3);
+			font-style: italic;
+			letter-spacing: .03em;
+		}
+
+		@media(max-width:600px) {
+			h1 { font-size: 1.3rem; }
+			.result-value { font-size: 1.3rem; }
+		}
+	</style>
+</head>
+<body>
+
+<div class="starfield" id="starfield"></div>
+
+<div class="container">
+	<header>
+		<div class="logo">
+			<svg class="eye-icon" viewBox="0 0 52 52" fill="none">
+				<ellipse cx="26" cy="26" rx="22" ry="14" stroke="#00c9b1" stroke-width="2.5"/>
+				<circle cx="26" cy="26" r="8" fill="#00c9b1" opacity=".9"/>
+				<circle cx="26" cy="26" r="4" fill="#0d0f14"/>
+				<circle cx="28.5" cy="23.5" r="1.5" fill="#4ee8d5"/>
+			</svg>
+			<h1>END PORTAL FINDER</h1>
+		</div>
+		<p class="subtitle">エンダーアイの軌跡からエンドポータル座標を計算する</p>
+	</header>
+
+	<!-- 投てきデータ入力 -->
+	<div class="card">
+		<div class="card-title">エンダーアイ 投てきデータ</div>
+		<div class="throw-table-wrap">
+			<table id="throw-table">
+				<thead>
+					<tr>
+						<th>#</th>
+						<th>投てき前 X</th>
+						<th>投てき前 Z</th>
+						<th>落下地点 X</th>
+						<th>落下地点 Z</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody id="throw-body"></tbody>
+			</table>
+		</div>
+		<p class="throw-note">
+			※ 「投てき前」= エンダーアイを投げる直前の自分のXZ座標（F3で確認）<br>
+			※ 「落下地点」= アイが飛んでいき地面に落ちた先のXZ座標<br>
+			※ 小数点・マイナス値どちらも入力できます。異なる場所から2〜3回投げると精度UP
+		</p>
+		<div class="btn-row">
+			<button class="btn btn-add" onclick="addRow()">＋ 行を追加</button>
+			<button class="btn btn-calc" onclick="calculate()">▶ 座標を計算</button>
+			<button class="btn btn-clear" onclick="clearAll()">クリア</button>
+		</div>
+		<div class="error-msg" id="error-msg"></div>
+		<div class="warn-msg"  id="warn-msg"></div>
+	</div>
+
+	<!-- 計算結果 -->
+	<div class="result-card" id="result-card">
+		<div class="card-title">計算結果 — エンドポータル推定座標</div>
+		<div class="result-top">
+			<svg class="portal-icon" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
+				<rect x="8" y="8" width="56" height="56" rx="6" fill="#1a0d2e" stroke="#7c5cfc" stroke-width="2"/>
+				<rect x="14" y="14" width="44" height="44" rx="4" fill="#0d0720" stroke="#9b59b6" stroke-width="1.5"/>
+				<ellipse cx="36" cy="36" rx="16" ry="16" fill="#200040" stroke="#a07ff5" stroke-width="1.2"/>
+				<ellipse cx="36" cy="36" rx="10" ry="10" fill="#0a001a" stroke="#7c5cfc" stroke-width="1"/>
+				<circle cx="36" cy="36" r="4" fill="#c39bd3" opacity=".8"/>
+				<circle cx="36" cy="36" r="2" fill="#fff" opacity=".6"/>
+				<rect x="30" y="8"  width="4" height="8" rx="1" fill="#7c5cfc" opacity=".8"/>
+				<rect x="38" y="8"  width="4" height="8" rx="1" fill="#7c5cfc" opacity=".8"/>
+				<rect x="30" y="56" width="4" height="8" rx="1" fill="#7c5cfc" opacity=".8"/>
+				<rect x="38" y="56" width="4" height="8" rx="1" fill="#7c5cfc" opacity=".8"/>
+				<rect x="8"  y="30" width="8" height="4" rx="1" fill="#7c5cfc" opacity=".8"/>
+				<rect x="8"  y="38" width="8" height="4" rx="1" fill="#7c5cfc" opacity=".8"/>
+				<rect x="56" y="30" width="8" height="4" rx="1" fill="#7c5cfc" opacity=".8"/>
+				<rect x="56" y="38" width="8" height="4" rx="1" fill="#7c5cfc" opacity=".8"/>
+			</svg>
+			<div>
+				<div class="result-label">推定ポータル座標（XZ）</div>
+				<div class="result-value" id="result-xy">—</div>
+			</div>
+		</div>
+
+		<div class="result-meta">
+			<div class="meta-item">
+				<div class="meta-label">使用データ数</div>
+				<div class="meta-value" id="result-count">—</div>
+			</div>
+			<div class="meta-item">
+				<div class="meta-label">収束誤差（半径）</div>
+				<div class="meta-value" id="result-error">—</div>
+			</div>
+		</div>
+
+		<div class="confidence-bar-wrap">
+			<div class="confidence-label">
+				<span>推定信頼度</span>
+				<span id="confidence-pct">—</span>
+			</div>
+			<div class="confidence-bar">
+				<div class="confidence-fill" id="confidence-fill" style="width:0%"></div>
+			</div>
+		</div>
+
+		<div class="debug-section">
+			<button class="debug-toggle" onclick="toggleDebug()">
+				<span id="debug-arrow">▶</span> 各投てきの詳細データを表示
+			</button>
+			<div class="debug-content" id="debug-content">
+				<table class="debug-table">
+					<thead>
+						<tr>
+							<th>#</th>
+							<th>投てき前 (X, Z)</th>
+							<th>落下地点 (X, Z)</th>
+							<th>飛行方向</th>
+						</tr>
+					</thead>
+					<tbody id="debug-body"></tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+
+	<!-- 投てき方向グラフ -->
+	<div class="card graph-card" id="graph-card">
+		<div class="card-title">投てき方向マップ</div>
+		<div style="display:flex; justify-content:center;">
+			<canvas id="dir-canvas" width="360" height="360" style="width:360px; max-width:100%; height:auto; border-radius:8px;"></canvas>
+		</div>
+		<p class="throw-note" style="margin-top:.75rem; text-align:center;">
+			矢印＝投てき方向 / 点線＝延長線 / ★＝推定ポータル座標 / 数字＝投てき開始点
+		</p>
+	</div>
+
+	<hr class="section-divider">
+	<div class="help-text">
+		<strong>使い方：</strong><br>
+		1. F3キーを押してデバッグ表示を開く<br>
+		2. エンダーアイを投げる直前の自分のXZ座標を記録する<br>
+		3. アイが飛んでいき落ちた先のXZ座標を確認・記録する<br>
+		4. 上の表に入力して「座標を計算」を押す<br>
+		5. 異なる場所・方向から複数回投げるほど精度が上がります<br><br>
+		<strong>計算方法：</strong>
+		各投てきの「投てき前→落下地点」を延長した直線を引き、複数の直線が最も近づく点（重み付き最小二乗法）をポータル座標として推定します。後に投げたデータほど重みが大きく、精度に強く影響します。<br><br>
+		投てきの角度差が小さすぎて最小二乗法の結果が飛行方向と矛盾する場合は、前方制約付きのレイ交点平均法に自動で切り替えて再推定します。それでも解決しない場合は、平均飛行方向のみを提示しエラー表示します。
+	</div>
+
+	<div class="credit">
+		<span class="credit-label">CREATED BY</span>
+		<span class="credit-name" id="credit-name"></span>
+		<span class="credit-desc">Triangulating the void, one Eye of Ender at a time.</span>
+	</div>
+</div>
+
+<script>
+	// 星生成
+	(function() {
+		var sf = document.getElementById('starfield');
+		for (var i = 0; i < 120; i++) {
+			var s = document.createElement('div');
+			s.className = 'star';
+			var sz = Math.random() * 2 + 0.5;
+			s.style.cssText =
+				'width:' + sz + 'px;height:' + sz + 'px;' +
+				'left:' + (Math.random() * 100) + '%;top:' + (Math.random() * 100) + '%;' +
+				'--d:' + (2 + Math.random() * 4) + 's;' +
+				'animation-delay:' + (Math.random() * 4) + 's';
+			sf.appendChild(s);
+		}
+	})();
+
+	var rowCount = 0;
+
+	// 表示番号を 1, 2, 3 ... と振り直す（DOM内部のID/inputのIDは変更しない）
+	function renumberRows() {
+		var rows = document.querySelectorAll('#throw-body tr');
+		for (var i = 0; i < rows.length; i++) {
+			var cell = rows[i].querySelector('.td-num');
+			if (cell) cell.textContent = (i + 1);
+		}
+	}
+
+	function addRow(px, pz, lx, lz) {
+		rowCount++;
+		var n = rowCount;
+		var tbody = document.getElementById('throw-body');
+		// 表示番号 = 追加前の行数+1。末尾に追加するだけなので、既存行の番号は
+		// 変わらない。ここで確定させれば、行数が多い状況でも
+		// renumberRows()（全行再スキャン）を毎回呼ぶ必要がなく O(1) で済む。
+		var displayNum = tbody.children.length + 1;
+		var tr = document.createElement('tr');
+		tr.id = 'row-' + n;
+		tr.innerHTML =
+			'<td class="td-num">' + displayNum + '</td>' +
+			'<td class="td-coord"><input type="number" id="px' + n + '" placeholder="例: -500.3" step="any" value="' + (px !== undefined ? px : '') + '"></td>' +
+			'<td class="td-coord"><input type="number" id="pz' + n + '" placeholder="例: 200.8"  step="any" value="' + (pz !== undefined ? pz : '') + '"></td>' +
+			'<td class="td-coord"><input type="number" id="lx' + n + '" placeholder="例: -490.1" step="any" value="' + (lx !== undefined ? lx : '') + '"></td>' +
+			'<td class="td-coord"><input type="number" id="lz' + n + '" placeholder="例: 215.5"  step="any" value="' + (lz !== undefined ? lz : '') + '"></td>' +
+			'<td><button class="del-btn" onclick="delRow(' + n + ')" title="削除">✕</button></td>';
+		tbody.appendChild(tr);
+	}
+
+	function delRow(n) {
+		var row = document.getElementById('row-' + n);
+		if (row) row.remove();
+		renumberRows();
+	}
+
+	function clearAll() {
+		document.getElementById('throw-body').innerHTML = '';
+		rowCount = 0;
+		document.getElementById('result-card').classList.remove('show');
+		document.getElementById('graph-card').classList.remove('show');
+		showError('');
+		showWarn('');
+		addRow();
+		addRow();
+	}
+
+	function showError(msg) {
+		var el = document.getElementById('error-msg');
+		el.innerHTML = msg;
+		el.classList.toggle('show', !!msg);
+	}
+
+	function showWarn(msg) {
+		var el = document.getElementById('warn-msg');
+		el.innerHTML = msg;
+		el.classList.toggle('show', !!msg);
+	}
+
+	// 座標を小数2桁まで表示（末尾ゼロ省略）
+	function fmt(v) {
+		return parseFloat((Math.round(v * 100) / 100).toFixed(2)).toString();
+	}
+
+	// 飛行方向ベクトル (dx,dz) から8方位ラベル
+	// Minecraft座標: +X=東, -X=西, +Z=南, -Z=北
+	function dirLabel(dx, dz) {
+		// bearing: 北=0, 東=90, 南=180, 西=270 (時計回り)
+		var bearing = (Math.atan2(dx, -dz) * 180 / Math.PI + 360) % 360;
+		var dirs = ['北(−Z)', '北東', '東(+X)', '南東', '南(+Z)', '南西', '西(−X)', '北西'];
+		return dirs[Math.round(bearing / 45) % 8];
+	}
+
+	// 投てき前→落下地点の単位ベクトル
+	// エンダーアイはポータルの方向に飛ぶので、この向きの延長上にポータルがある
+	function throwUnitVec(px, pz, lx, lz) {
+		var dx = lx - px;
+		var dz = lz - pz;
+		var len = Math.sqrt(dx * dx + dz * dz);
+		if (len < 1e-6) return null;
+		return { dx: dx / len, dz: dz / len };
+	}
+
+	// 行の重みを計算する。後の行ほど大きい (1.5^i の比率) が、
+	// 常に最後の行を基準 (指数0=重み1) に正規化することで、
+	// 行数がどれだけ多くても Math.pow が Infinity に達することがない。
+	// (生の 1.5^i だと、行数が数百を超えたあたりから行列式の計算で
+	//  Infinity - Infinity = NaN が発生する実害があったため、この正規化が必須)
+	function rowWeight(i, n) {
+		return Math.pow(1.5, i - (n - 1));
+	}
+
+	// 重み付き最小二乗法: 複数の直線の最近接点を求める
+	// 各直線は点 q=(px,pz) と単位方向 d=(dx,dz) で定義
+	// 後の行ほど重みを大きく → ポータルに近い直近データを優先
+	// 最小化: Σ wᵢ ||(p − qᵢ) − ((p−qᵢ)·dᵢ)dᵢ||²
+	// 正規方程式: (Σ wᵢ(I − dᵢdᵢᵀ)) p = Σ wᵢ(I − dᵢdᵢᵀ)qᵢ
+	function leastSquaresIntersect(lines) {
+		var A00 = 0, A01 = 0, A10 = 0, A11 = 0;
+		var b0  = 0, b1  = 0;
+		var n = lines.length;
+		for (var i = 0; i < n; i++) {
+			var w  = rowWeight(i, n);
+			var dx = lines[i].dx, dz = lines[i].dz;
+			var qx = lines[i].px, qz = lines[i].pz;
+			var m00 = 1 - dx * dx;
+			var m01 =   - dx * dz;
+			var m10 =   - dz * dx;
+			var m11 = 1 - dz * dz;
+			A00 += w * m00; A01 += w * m01;
+			A10 += w * m10; A11 += w * m11;
+			b0  += w * (m00 * qx + m01 * qz);
+			b1  += w * (m10 * qx + m11 * qz);
+		}
+		var det = A00 * A11 - A01 * A10;
+		if (Math.abs(det) < 1e-10) return null;
+		return {
+			x: (A11 * b0 - A01 * b1) / det,
+			z: (A00 * b1 - A10 * b0) / det
+		};
+	}
+
+	// 推定点から各直線への垂直距離の重み付き平均（leastSquaresIntersectと同じ重み）
+	function avgError(lines, ex, ez) {
+		var total = 0, wsum = 0;
+		var n = lines.length;
+		for (var i = 0; i < n; i++) {
+			var w  = rowWeight(i, n);
+			var dx = lines[i].dx, dz = lines[i].dz;
+			var rx = ex - lines[i].px, rz = ez - lines[i].pz;
+			var dot = rx * dx + rz * dz;
+			var px2 = rx - dot * dx, pz2 = rz - dot * dz;
+			total += w * Math.sqrt(px2 * px2 + pz2 * pz2);
+			wsum  += w;
+		}
+		return total / wsum;
+	}
+
+	// 2本のレイ（前方半直線）の交点を求める
+	// 両方の t > 0 を満たす場合のみ交点を返す。それ以外は null。
+	function raysIntersect(r1, r2) {
+		var d1x = r1.dx, d1z = r1.dz;
+		var d2x = r2.dx, d2z = r2.dz;
+		// 連立: r1.q + t1*d1 = r2.q + t2*d2
+		var det = d2x * d1z - d1x * d2z;
+		if (Math.abs(det) < 1e-10) return null;
+		var bx = r2.px - r1.px;
+		var bz = r2.pz - r1.pz;
+		var t1 = (d2x * bz - d2z * bx) / det;
+		var t2 = (d1x * bz - d1z * bx) / det;
+		if (t1 <= 0 || t2 <= 0) return null;
+		return { x: r1.px + t1 * d1x, z: r1.pz + t1 * d1z };
+	}
+
+	// 前方向制約付き: 各前方ペアの交点を加重平均してポータル位置を推定
+	// 後の行ほど重みを大きくする (行 i の重み = 1.5^i)
+	function rayBasedEstimate(lines) {
+		var sumX = 0, sumZ = 0, sumW = 0, pairCount = 0;
+		var n = lines.length;
+		for (var i = 0; i < n; i++) {
+			for (var j = i + 1; j < n; j++) {
+				var pt = raysIntersect(lines[i], lines[j]);
+				if (pt) {
+					var w = rowWeight(i, n) * rowWeight(j, n);
+					sumX += pt.x * w;
+					sumZ += pt.z * w;
+					sumW += w;
+					pairCount++;
+				}
+			}
+		}
+		if (sumW === 0) return null;
+		return { x: sumX / sumW, z: sumZ / sumW, pairCount: pairCount };
+	}
+
+	function calculate() {
+		showError('');
+		showWarn('');
+		// 計算開始時に前回の結果を必ず隠す。
+		// こうしておくことで、この後どのエラー分岐で return しても
+		// 古い（無効になった）結果やグラフが画面に残り続けることがない。
+		document.getElementById('result-card').classList.remove('show');
+		document.getElementById('graph-card').classList.remove('show');
+
+		var rows = document.getElementById('throw-body').querySelectorAll('tr');
+		var lines = [];
+		var debugRows = [];
+		var warnings = [];
+
+		// それまでに蓄積した警告（行スキップの理由など）を表示する。
+		// エラーで処理を打ち切る場合でも、この情報が失われないよう
+		// showError() の直前に必ず呼び出す。
+		function flushWarnings() {
+			if (warnings.length > 0) showWarn(warnings.join(' / '));
+		}
+
+		for (var i = 0; i < rows.length; i++) {
+			var id = rows[i].id.replace('row-', '');
+			var pxEl = document.getElementById('px' + id);
+			var pzEl = document.getElementById('pz' + id);
+			var lxEl = document.getElementById('lx' + id);
+			var lzEl = document.getElementById('lz' + id);
+			if (!pxEl) continue;
+
+			var pxV = pxEl.value.trim(), pzV = pzEl.value.trim();
+			var lxV = lxEl.value.trim(), lzV = lzEl.value.trim();
+
+			// 全空欄行はスキップ
+			if (pxV === '' && pzV === '' && lxV === '' && lzV === '') continue;
+
+			// 一部だけ空欄はエラー
+			if (pxV === '' || pzV === '' || lxV === '' || lzV === '') {
+				flushWarnings();
+				showError((i + 1) + '行目: すべての座標を入力してください。');
+				return;
+			}
+
+			var px = parseFloat(pxV), pz = parseFloat(pzV);
+			var lx = parseFloat(lxV), lz = parseFloat(lzV);
+
+			if (isNaN(px) || isNaN(pz) || isNaN(lx) || isNaN(lz)) {
+				flushWarnings();
+				showError((i + 1) + '行目: 数値を入力してください。');
+				return;
+			}
+
+			var vec = throwUnitVec(px, pz, lx, lz);
+			if (!vec) {
+				warnings.push((i + 1) + '行目: 投てき前と落下地点が同じです。スキップします。');
+				continue;
+			}
+
+			// Minecraftベアリング（北=0°, 東=90°, 南=180°, 西=270°）
+			var bearing = (Math.atan2(vec.dx, -vec.dz) * 180 / Math.PI + 360) % 360;
+			var dir = dirLabel(vec.dx, vec.dz);
+
+			// rowNum = テーブル上の表示行番号（i+1）。途中の行がスキップされても
+			// デバッグ表・警告文・グラフの番号がすべてこの値で統一され、
+			// 実際の入力テーブルの行番号と常に一致する。
+			lines.push({ px: px, pz: pz, dx: vec.dx, dz: vec.dz, rowNum: i + 1 });
+			debugRows.push({
+				n: i + 1,
+				fromX: px, fromZ: pz,
+				toX: lx, toZ: lz,
+				bearing: bearing, dir: dir
+			});
+		}
+
+		if (lines.length < 2) {
+			flushWarnings();
+			showError('有効な投てきデータが2件以上必要です（現在: ' + lines.length + '件）。');
+			return;
+		}
+		// (警告表示は方向チェック後にまとめて行う)
+
+		var result = leastSquaresIntersect(lines);
+		if (!result) {
+			flushWarnings();
+			showError('直線が平行で交点を計算できません。異なる方向から投げてください。');
+			return;
+		}
+
+		// === STEP 5: 方向制約検証 ===
+		// 各投てきについて (推定点 − 投てき前) ・ 単位ベクトル の内積を計算
+		// 負 = ポータルが投てきの「後方」にある = 物理的に不可能
+		function countBackward(p) {
+			var c = 0, viol = [];
+			for (var i = 0; i < lines.length; i++) {
+				var dot = (p.x - lines[i].px) * lines[i].dx + (p.z - lines[i].pz) * lines[i].dz;
+				if (dot < 0) { c++; viol.push(lines[i].rowNum); }
+			}
+			return { count: c, violations: viol };
+		}
+
+		// 全行が後方判定になった場合に表示する「距離不明」エラー
+		// (最小二乗法・レイ交点法のどちらも失敗した場合の共通処理)
+		// reason: 状況に応じた原因説明の文言（呼び出し元ごとに正確な理由を渡す）
+		function rejectAllBackward(reason) {
+			flushWarnings();
+			var avgDx = 0, avgDz = 0;
+			for (var i = 0; i < lines.length; i++) {
+				avgDx += lines[i].dx;
+				avgDz += lines[i].dz;
+			}
+			var alen = Math.sqrt(avgDx*avgDx + avgDz*avgDz);
+			avgDx /= alen; avgDz /= alen;
+			var avgBearing = (Math.atan2(avgDx, -avgDz) * 180 / Math.PI + 360) % 360;
+			var dirStr = dirLabel(avgDx, avgDz);
+
+			showError(
+				'<strong>⚠ ポータル座標を特定できません</strong><br>' +
+				'エンダーアイは <strong style="color:#a07ff5;">' + dirStr +
+				' 方向 (約 ' + avgBearing.toFixed(1) + '°)</strong> へ飛んでいますが、' +
+				reason + '<br>' +
+				'<br><strong>対処法：</strong> ' + dirStr +
+				' へ大きく移動した後、できれば 90°近く違う方向から投げて角度差を作ってください。'
+			);
+			document.getElementById('result-card').classList.remove('show');
+			document.getElementById('graph-card').classList.remove('show');
+		}
+
+		var chk = countBackward(result);
+
+		// 全行が後方 → レイ交点平均法にフォールバック
+		if (chk.count === lines.length) {
+			var rayResult = rayBasedEstimate(lines);
+			if (rayResult && rayResult.pairCount > 0) {
+				result = { x: rayResult.x, z: rayResult.z };
+				chk = countBackward(result);
+
+				// フォールバック後も全行が後方のまま → 完全拒否
+				// (レイ交点の加重平均は個々のペアでは前方でも、
+				//  平均後の点が別の行から見ると後方になり得るため必ず再検証する)
+				// 注: このケースは投てき角度がバラけていても起こり得るため、
+				// 「ほぼ平行」とは限らない。原因を正確に伝える文言にする。
+				if (chk.count === lines.length) {
+					rejectAllBackward(
+						'投てきデータ間で交点の位置に矛盾があり、一貫した座標が求まりません。'
+					);
+					return;
+				}
+				warnings.push(
+					'最小二乗法の結果がエンダーアイの飛行方向と真逆だったため、' +
+					'前方制約付きのレイ交点平均法 (' + rayResult.pairCount + 'ペア使用) に切り替えました。'
+				);
+			} else {
+				// フォールバックも失敗（前方交点が1件も見つからない）
+				// → こちらは実際に投てきがほぼ平行であることが原因
+				rejectAllBackward('投てきがほぼ平行のため距離が定まりません。');
+				return;
+			}
+		}
+
+		// 一部の行のみ後方 → 警告（データに不整合がある可能性）
+		if (chk.count > 0) {
+			warnings.push(
+				'行 ' + chk.violations.join(', ') +
+				' の飛行方向が計算結果と一致しません。入力ミスがないか確認してください。'
+			);
+		}
+
+		var ex = result.x, ez = result.z;
+
+		// 注: グラフ描画では各行の単位ベクトルを反転させず、実際に記録された
+		// 飛行方向をそのまま表示する。方向制約に違反する行はここで警告済みであり、
+		// グラフ上でも矢印が推定ポータルから外れて見えることで矛盾を可視化する
+		// （矢印を無理に反転させて隠すと、警告文とグラフの内容が矛盾してしまう）。
+		var err = avgError(lines, ex, ez);
+		var confidence = Math.max(0, Math.min(100, 100 - err * 2 + (lines.length - 2) * 8));
+		var confColor = confidence > 70 ? '#4caf7d' : confidence > 40 ? '#e0a050' : '#e05252';
+
+		// 結果表示
+		document.getElementById('result-xy').textContent = 'X: ' + fmt(ex) + '  /  Z: ' + fmt(ez);
+		document.getElementById('result-count').textContent = lines.length + ' 件';
+		document.getElementById('result-error').textContent = fmt(err) + ' ブロック';
+		document.getElementById('confidence-pct').textContent = Math.round(confidence) + '%';
+		var fill = document.getElementById('confidence-fill');
+		fill.style.width = confidence + '%';
+		fill.style.background = 'linear-gradient(90deg,' + confColor + '88,' + confColor + ')';
+
+		// デバッグ行
+		var dbody = document.getElementById('debug-body');
+		dbody.innerHTML = '';
+		for (var j = 0; j < debugRows.length; j++) {
+			var d = debugRows[j];
+			var tr = document.createElement('tr');
+			tr.innerHTML =
+				'<td class="td-num">' + d.n + '</td>' +
+				'<td>(' + fmt(d.fromX) + ', ' + fmt(d.fromZ) + ')</td>' +
+				'<td>(' + fmt(d.toX)   + ', ' + fmt(d.toZ)   + ')</td>' +
+				'<td><span class="angle-badge">' + d.bearing.toFixed(1) + '°  ' + d.dir + '</span></td>';
+			dbody.appendChild(tr);
+		}
+
+		// 警告メッセージをまとめて表示
+		flushWarnings();
+
+		document.getElementById('result-card').classList.add('show');
+		document.getElementById('result-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+		drawGraph(lines, ex, ez);
+	}
+
+	function toggleDebug() {
+		var c = document.getElementById('debug-content');
+		var a = document.getElementById('debug-arrow');
+		var open = c.classList.toggle('open');
+		a.textContent = open ? '▼' : '▶';
+	}
+
+	// 投てき方向マップ描画
+	function drawGraph(lines, portalX, portalZ) {
+		document.getElementById('graph-card').classList.add('show');
+
+		var canvas = document.getElementById('dir-canvas');
+		var ctx = canvas.getContext('2d');
+
+		// 論理サイズ 360×360。高解像度ディスプレイ (devicePixelRatio>1) では
+		// 内部解像度を上げて描画し、文字や線がぼやけないようにする。
+		var W = 360, H = 360;
+		var dpr = window.devicePixelRatio || 1;
+		if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
+			canvas.width = W * dpr;
+			canvas.height = H * dpr;
+		}
+		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+		var cx = W / 2, cy = H / 2;
+		var pad = 40;
+		var drawR = cx - pad;
+
+		// スケール: 投てき前座標 + ポータル推定座標を包む
+		var allX = [portalX], allZ = [portalZ];
+		for (var i = 0; i < lines.length; i++) {
+			allX.push(lines[i].px);
+			allZ.push(lines[i].pz);
+		}
+		var minX = Math.min.apply(null, allX), maxX = Math.max.apply(null, allX);
+		var minZ = Math.min.apply(null, allZ), maxZ = Math.max.apply(null, allZ);
+		var midX = (minX + maxX) / 2, midZ = (minZ + maxZ) / 2;
+		var span = Math.max(maxX - minX, maxZ - minZ, 80) * 1.5;
+
+		// ワールド座標 → キャンバス座標（+X=右, +Z=下）
+		function toC(wx, wz) {
+			return {
+				x: cx + (wx - midX) / span * drawR * 2,
+				y: cy + (wz - midZ) / span * drawR * 2
+			};
+		}
+
+		// 背景のある小さなラベル（線と重なっても読めるように）
+		// placed: 既に配置したラベルの矩形。重なる場合は上下にずらして配置する
+		var placed = [];
+		function label(text, x, y, color, align) {
+			ctx.save();
+			ctx.font = '11px Share Tech Mono, monospace';
+			ctx.textBaseline = 'middle';
+			var tw = ctx.measureText(text).width;
+			var left = (align === 'center') ? x - tw / 2 : x;
+			// キャンバス内に収める
+			left = Math.max(2, Math.min(W - tw - 2, left));
+			var baseTop = Math.max(8, Math.min(H - 8, y));
+			var top = baseTop;
+			var offs = [0, 14, -14, 28, -28, 42, -42, 56, -56, 70, -70];
+			for (var k = 0; k < offs.length; k++) {
+				var t = Math.max(8, Math.min(H - 8, baseTop + offs[k]));
+				var hit = false;
+				for (var q = 0; q < placed.length; q++) {
+					var r = placed[q];
+					if (left - 3 < r.x + r.w && left - 3 + tw + 6 > r.x &&
+						t - 7 < r.y + r.h && t - 7 + 14 > r.y) { hit = true; break; }
+				}
+				if (!hit) { top = t; break; }
+			}
+			placed.push({ x: left - 3, y: top - 7, w: tw + 6, h: 14 });
+			ctx.fillStyle = 'rgba(13,15,20,0.85)';
+			ctx.fillRect(left - 3, top - 7, tw + 6, 14);
+			ctx.fillStyle = color;
+			ctx.textAlign = 'left';
+			ctx.fillText(text, left, top);
+			ctx.restore();
+		}
+
+		ctx.clearRect(0, 0, W, H);
+		ctx.fillStyle = '#0d0f14';
+		ctx.fillRect(0, 0, W, H);
+
+		// --- ここから描画領域（pad の内側）にクリップ ---
+		// グリッドや延長線が外周の方位ラベルにかぶらないようにする
+		ctx.save();
+		ctx.beginPath();
+		ctx.rect(pad, pad, W - pad * 2, H - pad * 2);
+		ctx.clip();
+
+		// グリッド
+		ctx.strokeStyle = 'rgba(42,47,69,0.7)';
+		ctx.lineWidth = 0.8;
+		for (var g = -4; g <= 4; g++) {
+			var gx = toC(midX + g * span / 5, 0);
+			var gz = toC(0, midZ + g * span / 5);
+			ctx.beginPath(); ctx.moveTo(gx.x, pad); ctx.lineTo(gx.x, H - pad); ctx.stroke();
+			ctx.beginPath(); ctx.moveTo(pad, gz.y); ctx.lineTo(W - pad, gz.y); ctx.stroke();
+		}
+
+		// 10色まで区別できるパレット（行数が多くても隣同士が同色になりにくい）
+		var colors = ['#00c9b1', '#f59e42', '#e05252', '#7c5cfc', '#4caf7d',
+					  '#c39bd3', '#f0c040', '#5b8dee', '#ff7eb6', '#9ad15b'];
+
+		// 延長点線（クリップ内）
+		for (var i = 0; i < lines.length; i++) {
+			var l = lines[i];
+			var from = toC(l.px, l.pz);
+			var extPx = W * 2;
+			ctx.save();
+			ctx.beginPath();
+			ctx.moveTo(from.x, from.y);
+			ctx.lineTo(from.x + l.dx * extPx, from.y + l.dz * extPx);
+			ctx.strokeStyle = colors[i % colors.length];
+			ctx.globalAlpha = 0.25;
+			ctx.lineWidth = 1.5; ctx.setLineDash([5, 5]);
+			ctx.stroke(); ctx.restore();
+		}
+		ctx.restore();
+		// --- クリップ終了 ---
+
+		// 方位ラベル（外周）
+		ctx.fillStyle = 'rgba(90,96,128,0.9)';
+		ctx.font = '11px Share Tech Mono, monospace';
+		ctx.textBaseline = 'alphabetic';
+		ctx.textAlign = 'center';
+		ctx.fillText('北 −Z', cx, pad - 8);
+		ctx.fillText('南 +Z', cx, H - pad + 18);
+		ctx.textAlign = 'left';  ctx.fillText('+X 東', W - pad + 3, cy + 4);
+		ctx.textAlign = 'right'; ctx.fillText('西 −X', pad - 3, cy + 4);
+
+		// 矢印と開始点
+		for (var i = 0; i < lines.length; i++) {
+			var l = lines[i];
+			var col = colors[i % colors.length];
+			var from = toC(l.px, l.pz);
+
+			// l.dx, l.dz は単位ベクトル。スクリーン軸も同じ向き (+X=右, +Z=下)
+			var arrPx = 50;
+			var ta = { x: from.x + l.dx * arrPx, y: from.y + l.dz * arrPx };
+			ctx.save();
+			ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(ta.x, ta.y);
+			ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.setLineDash([]);
+			ctx.stroke();
+			var ang2 = Math.atan2(l.dz, l.dx);
+			var hl = 10;
+			ctx.beginPath();
+			ctx.moveTo(ta.x, ta.y);
+			ctx.lineTo(ta.x - hl * Math.cos(ang2 - 0.4), ta.y - hl * Math.sin(ang2 - 0.4));
+			ctx.moveTo(ta.x, ta.y);
+			ctx.lineTo(ta.x - hl * Math.cos(ang2 + 0.4), ta.y - hl * Math.sin(ang2 + 0.4));
+			ctx.stroke(); ctx.restore();
+
+			ctx.save();
+			ctx.beginPath(); ctx.arc(from.x, from.y, 5, 0, Math.PI * 2);
+			ctx.fillStyle = col; ctx.fill();
+			ctx.strokeStyle = '#0d0f14'; ctx.lineWidth = 1.5; ctx.stroke();
+			ctx.restore();
+		}
+
+		// ポータル推定座標
+		var pp = toC(portalX, portalZ);
+		ctx.save();
+		ctx.font = '22px serif';
+		ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+		ctx.fillStyle = '#a07ff5';
+		ctx.shadowColor = '#7c5cfc'; ctx.shadowBlur = 14;
+		ctx.fillText('★', pp.x, pp.y);
+		ctx.restore();
+
+		// 座標ラベル（★の下。下端に近い場合は★の上に出す。左右ははみ出さないよう調整）
+		// 最も重要なので最初に配置し、番号ラベルの方をずらす
+		var ly = (pp.y + 22 > H - 4) ? pp.y - 20 : pp.y + 20;
+		label('X:' + fmt(portalX) + ' Z:' + fmt(portalZ), pp.x, ly, '#a07ff5', 'center');
+
+		// 行番号ラベル: 矢印と逆側に置き、矢印・★・他のラベルに重ならないようにする
+		for (var i = 0; i < lines.length; i++) {
+			var l = lines[i];
+			var from = toC(l.px, l.pz);
+			label('' + l.rowNum, from.x - l.dx * 14 - 3, from.y - l.dz * 14, colors[i % colors.length], 'center');
+		}
+	}
+
+	// クレジット名の復元（簡易改ざん防止）
+	// 名前を生テキストとしてソース中に置かず、文字コード配列として保持する。
+	// 単純なテキスト検索・置換では改変できず、配列を書き換えても
+	// チェックサムが合わなければ元の表示に戻せない簡易ガード付き。
+	(function() {
+		var codes = [83, 121, 114, 116, 105, 115]; // "Syrtis"
+		var checksum = 654; // codes の合計値（改ざん検知用）
+		var sum = codes.reduce(function(a, b) { return a + b; }, 0);
+		var name = (sum === checksum)
+			? String.fromCharCode.apply(null, codes)
+			: '???'; // 改ざんが検知された場合は表示しない
+		var el = document.getElementById('credit-name');
+		if (el) el.textContent = name;
+	})();
+
+	// 初期行
+	addRow();
+	addRow();
+</script>
+</body>
+</html>

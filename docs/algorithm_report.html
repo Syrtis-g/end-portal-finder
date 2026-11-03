@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>End Portal Finder — アルゴリズム技術レポート</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			--bg:       #0a0c12;
+			--bg2:      #0f1118;
+			--surface:  #13161f;
+			--surf2:    #1a1e2a;
+			--surf3:    #222636;
+			--border:   #272c3f;
+			--border2:  #333a55;
+			--accent:   #7c5cfc;
+			--acc2:     #a07ff5;
+			--acc3:     #c5aeff;
+			--glow:     rgba(124,92,252,0.2);
+			--cyan:     #00c9b1;
+			--cyan2:    #4ee8d5;
+			--cyan-bg:  rgba(0,201,177,0.08);
+			--text:     #e4e6f0;
+			--text2:    #9aa0b8;
+			--text3:    #555d7a;
+			--ok:       #4caf7d;
+			--warn:     #e0a050;
+			--ng:       #e05252;
+			--font-mono: 'Share Tech Mono', monospace;
+			--font-body: 'Noto Sans JP', sans-serif;
+			--font-disp: 'DM Serif Display', serif;
+			--r: 6px;
+			--rl: 12px;
+		}
+
+		* { box-sizing: border-box; margin: 0; padding: 0; }
+		html { scroll-behavior: smooth; }
+		body {
+			background: var(--bg);
+			color: var(--text);
+			font-family: var(--font-body);
+			font-weight: 300;
+			line-height: 1.75;
+			min-height: 100vh;
+		}
+
+		body::before {
+			content: '';
+			position: fixed;
+			inset: 0;
+			background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+			pointer-events: none;
+			z-index: 0;
+			opacity: 0.6;
+		}
+
+		.page {
+			position: relative;
+			z-index: 1;
+			display: grid;
+			grid-template-columns: 260px 1fr;
+			min-height: 100vh;
+		}
+
+		.sidebar {
+			position: sticky;
+			top: 0;
+			height: 100vh;
+			overflow-y: auto;
+			background: var(--bg2);
+			border-right: 1px solid var(--border);
+			padding: 2rem 0 2rem;
+			display: flex;
+			flex-direction: column;
+		}
+		.sidebar::-webkit-scrollbar { width: 4px; }
+		.sidebar::-webkit-scrollbar-track { background: transparent; }
+		.sidebar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+		.sidebar-logo {
+			padding: 0 1.5rem 1.5rem;
+			border-bottom: 1px solid var(--border);
+			margin-bottom: 1.5rem;
+		}
+		.sidebar-logo .title {
+			font-family: var(--font-mono);
+			font-size: .7rem;
+			letter-spacing: .18em;
+			color: var(--acc2);
+			text-transform: uppercase;
+		}
+		.sidebar-logo .sub {
+			font-size: .7rem;
+			color: var(--text3);
+			margin-top: .25rem;
+		}
+
+		.nav-section { padding: 0 1rem; flex: 1; }
+		.nav-group-label {
+			font-family: var(--font-mono);
+			font-size: .6rem;
+			letter-spacing: .16em;
+			color: var(--text3);
+			text-transform: uppercase;
+			padding: .6rem .5rem .3rem;
+		}
+		.nav-link {
+			display: flex;
+			align-items: center;
+			gap: .5rem;
+			padding: .4rem .6rem;
+			border-radius: var(--r);
+			color: var(--text2);
+			text-decoration: none;
+			font-size: .78rem;
+			line-height: 1.4;
+			transition: all .15s;
+			margin-bottom: 1px;
+		}
+		.nav-link:hover { background: var(--surf3); color: var(--text); }
+		.nav-link.active { background: rgba(124,92,252,.12); color: var(--acc2); }
+		.nav-link .num {
+			font-family: var(--font-mono);
+			font-size: .65rem;
+			color: var(--accent);
+			min-width: 18px;
+		}
+		.nav-link.new::after {
+			content: 'NEW';
+			font-family: var(--font-mono);
+			font-size: .55rem;
+			background: var(--ng);
+			color: #fff;
+			padding: 0 5px;
+			border-radius: 3px;
+			margin-left: auto;
+			letter-spacing: .08em;
+		}
+
+		.sidebar-footer {
+			padding: 1.5rem 1.5rem 0;
+			border-top: 1px solid var(--border);
+			margin-top: 1.5rem;
+			font-size: .7rem;
+			color: var(--text3);
+		}
+		.sidebar-footer .credit {
+			font-family: var(--font-mono);
+			color: var(--acc2);
+			font-size: .75rem;
+		}
+
+		.main { padding: 0; max-width: 840px; }
+
+		.hero {
+			padding: 5rem 4rem 4rem;
+			border-bottom: 1px solid var(--border);
+			position: relative;
+			overflow: hidden;
+		}
+		.hero::before {
+			content: '';
+			position: absolute;
+			top: -120px; right: -120px;
+			width: 400px; height: 400px;
+			background: radial-gradient(circle, rgba(124,92,252,.18) 0%, transparent 70%);
+			pointer-events: none;
+		}
+
+		.hero-badge {
+			display: inline-flex;
+			align-items: center;
+			gap: .5rem;
+			background: rgba(124,92,252,.1);
+			border: 1px solid rgba(124,92,252,.25);
+			border-radius: 100px;
+			padding: .25rem .85rem;
+			font-family: var(--font-mono);
+			font-size: .65rem;
+			letter-spacing: .12em;
+			color: var(--acc2);
+			text-transform: uppercase;
+			margin-bottom: 1.5rem;
+		}
+		.hero-badge::before {
+			content: '';
+			width: 6px; height: 6px;
+			border-radius: 50%;
+			background: var(--cyan);
+			box-shadow: 0 0 6px var(--cyan);
+		}
+
+		.hero-rev {
+			display: inline-block;
+			margin-left: .5rem;
+			font-family: var(--font-mono);
+			font-size: .62rem;
+			letter-spacing: .12em;
+			color: var(--text3);
+			border: 1px solid var(--border2);
+			padding: .15rem .55rem;
+			border-radius: 100px;
+		}
+
+		.hero h1 {
+			font-family: var(--font-disp);
+			font-size: 3rem;
+			font-weight: 400;
+			color: var(--text);
+			line-height: 1.15;
+			margin-bottom: .6rem;
+		}
+		.hero h1 em { color: var(--acc2); font-style: italic; }
+
+		.hero-sub {
+			font-size: .9rem;
+			color: var(--text2);
+			max-width: 540px;
+			line-height: 1.65;
+			margin-bottom: 2rem;
+		}
+
+		.hero-meta { display: flex; gap: 2rem; flex-wrap: wrap; }
+		.meta-label {
+			font-family: var(--font-mono);
+			font-size: .6rem;
+			letter-spacing: .14em;
+			color: var(--text3);
+			text-transform: uppercase;
+			margin-bottom: .15rem;
+		}
+		.meta-val { font-size: .82rem; color: var(--text2); }
+
+		.content { padding: 0 4rem 6rem; }
+
+		.section {
+			padding-top: 3.5rem;
+			border-bottom: 1px solid var(--border);
+			padding-bottom: 2rem;
+			scroll-margin-top: 2rem;
+		}
+		.section:last-child { border-bottom: none; }
+
+		.section-header {
+			display: flex;
+			align-items: baseline;
+			gap: 1rem;
+			margin-bottom: 1.5rem;
+		}
+		.section-num {
+			font-family: var(--font-mono);
+			font-size: .65rem;
+			color: var(--accent);
+			letter-spacing: .1em;
+			flex-shrink: 0;
+			padding-top: .1rem;
+		}
+		.section-new {
+			background: var(--ng);
+			color: #fff;
+			font-family: var(--font-mono);
+			font-size: .58rem;
+			padding: .15rem .45rem;
+			border-radius: 3px;
+			letter-spacing: .08em;
+			vertical-align: middle;
+			margin-left: .65rem;
+		}
+
+		h2 {
+			font-family: var(--font-disp);
+			font-size: 1.75rem;
+			font-weight: 400;
+			color: var(--text);
+			line-height: 1.2;
+		}
+
+		h3 {
+			font-family: var(--font-mono);
+			font-size: .8rem;
+			letter-spacing: .1em;
+			color: var(--cyan);
+			text-transform: uppercase;
+			margin: 2rem 0 .75rem;
+			display: flex;
+			align-items: center;
+			gap: .5rem;
+		}
+		h3::before {
+			content: '';
+			display: block;
+			width: 3px; height: 12px;
+			background: var(--cyan);
+			border-radius: 2px;
+		}
+
+		p { font-size: .88rem; color: var(--text2); margin-bottom: .9rem; max-width: 680px; }
+		p code, .icode {
+			font-family: var(--font-mono);
+			color: var(--acc2);
+			font-size: .85em;
+			background: var(--surf2);
+			padding: 1px 5px;
+			border-radius: 3px;
+		}
+
+		.formula {
+			background: var(--surf2);
+			border: 1px solid var(--border2);
+			border-left: 3px solid var(--accent);
+			border-radius: 0 var(--r) var(--r) 0;
+			padding: .75rem 1.2rem;
+			margin: .6rem 0;
+			font-family: var(--font-mono);
+			font-size: .88rem;
+			color: var(--acc3);
+			line-height: 1.8;
+			overflow-x: auto;
+			max-width: 680px;
+		}
+		.formula-group {
+			background: var(--surf2);
+			border: 1px solid var(--border2);
+			border-left: 3px solid var(--accent);
+			border-radius: 0 var(--r) var(--r) 0;
+			padding: .75rem 1.2rem;
+			margin: .6rem 0;
+			max-width: 680px;
+		}
+		.formula-group .f {
+			font-family: var(--font-mono);
+			font-size: .85rem;
+			color: var(--acc3);
+			line-height: 2;
+			display: block;
+		}
+
+		.note {
+			background: var(--cyan-bg);
+			border: 1px solid rgba(0,201,177,.2);
+			border-radius: var(--rl);
+			padding: .8rem 1.1rem;
+			margin: 1rem 0;
+			font-size: .82rem;
+			color: var(--cyan2);
+			display: flex;
+			gap: .6rem;
+			align-items: flex-start;
+			max-width: 680px;
+		}
+		.note::before { content: '▶'; flex-shrink: 0; margin-top: .05rem; }
+
+		.warn-box {
+			background: rgba(224,160,80,.07);
+			border: 1px solid rgba(224,160,80,.2);
+			border-radius: var(--rl);
+			padding: .8rem 1.1rem;
+			margin: 1rem 0;
+			font-size: .82rem;
+			color: var(--warn);
+			display: flex;
+			gap: .6rem;
+			align-items: flex-start;
+			max-width: 680px;
+		}
+		.warn-box::before { content: '⚠'; flex-shrink: 0; }
+
+		.ng-box {
+			background: rgba(224,82,82,.07);
+			border: 1px solid rgba(224,82,82,.25);
+			border-radius: var(--rl);
+			padding: .9rem 1.2rem;
+			margin: 1rem 0;
+			font-size: .85rem;
+			color: #f58787;
+			display: flex;
+			gap: .65rem;
+			align-items: flex-start;
+			max-width: 680px;
+		}
+		.ng-box::before { content: '✕'; flex-shrink: 0; font-weight: bold; }
+
+		.tbl-wrap { overflow-x: auto; margin: 1rem 0; max-width: 680px; }
+		table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+		thead th {
+			background: var(--surf3);
+			color: var(--acc2);
+			font-family: var(--font-mono);
+			font-size: .68rem;
+			letter-spacing: .1em;
+			text-transform: uppercase;
+			padding: .65rem .9rem;
+			text-align: left;
+			border: 1px solid var(--border2);
+		}
+		tbody td {
+			padding: .6rem .9rem;
+			border: 1px solid var(--border);
+			color: var(--text2);
+			vertical-align: top;
+		}
+		tbody tr:nth-child(even) td { background: var(--surf2); }
+		tbody tr:hover td { background: var(--surf3); }
+		.td-mono { font-family: var(--font-mono); color: var(--acc2); font-size: .82rem; }
+		.td-ok { color: var(--ok); }
+		.td-warn { color: var(--warn); }
+		.td-ng { color: var(--ng); }
+
+		.flow {
+			display: flex;
+			gap: 0;
+			margin: 1.5rem 0;
+			overflow-x: auto;
+			padding-bottom: .5rem;
+		}
+		.flow-step {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			flex: 1;
+			min-width: 100px;
+		}
+		.flow-box {
+			background: var(--surf2);
+			border: 1px solid var(--border2);
+			border-radius: var(--r);
+			padding: .65rem .5rem;
+			text-align: center;
+			width: 100%;
+			position: relative;
+		}
+		.flow-box.new {
+			border-color: var(--ng);
+			background: rgba(224,82,82,.05);
+		}
+		.flow-step:first-child .flow-box {
+			border-left-color: var(--accent);
+			border-left-width: 2px;
+		}
+		.flow-num {
+			font-family: var(--font-mono);
+			font-size: .6rem;
+			color: var(--accent);
+			letter-spacing: .1em;
+			margin-bottom: .25rem;
+		}
+		.flow-box.new .flow-num { color: var(--ng); }
+		.flow-label { font-size: .72rem; color: var(--text2); line-height: 1.35; }
+		.flow-arrow {
+			display: flex;
+			align-items: center;
+			color: var(--border2);
+			padding: 0 .15rem;
+			padding-bottom: .4rem;
+			font-size: 1rem;
+		}
+
+		ul.report-list {
+			list-style: none;
+			margin: .5rem 0 1rem;
+			max-width: 680px;
+		}
+		ul.report-list li {
+			display: flex;
+			gap: .6rem;
+			align-items: flex-start;
+			font-size: .85rem;
+			color: var(--text2);
+			margin-bottom: .45rem;
+			padding-left: .2rem;
+		}
+		ul.report-list li::before {
+			content: '—';
+			color: var(--accent);
+			flex-shrink: 0;
+			font-family: var(--font-mono);
+		}
+
+		.weight-bars {
+			display: flex;
+			flex-direction: column;
+			gap: .5rem;
+			margin: 1rem 0;
+			max-width: 460px;
+		}
+		.wbar-row { display: flex; align-items: center; gap: .75rem; }
+		.wbar-label {
+			font-family: var(--font-mono);
+			font-size: .72rem;
+			color: var(--text2);
+			width: 60px;
+			flex-shrink: 0;
+		}
+		.wbar-track {
+			flex: 1;
+			height: 8px;
+			background: var(--surf3);
+			border-radius: 4px;
+			overflow: hidden;
+		}
+		.wbar-fill {
+			height: 100%;
+			border-radius: 4px;
+			background: linear-gradient(90deg, var(--accent), var(--acc2));
+			transition: width .6s ease;
+		}
+		.wbar-val {
+			font-family: var(--font-mono);
+			font-size: .7rem;
+			color: var(--acc2);
+			width: 38px;
+			text-align: right;
+			flex-shrink: 0;
+		}
+
+		.conf-bars {
+			display: flex;
+			flex-direction: column;
+			gap: .6rem;
+			margin: 1rem 0;
+			max-width: 500px;
+		}
+		.cbar-row { display: flex; align-items: center; gap: .75rem; }
+		.cbar-label { font-size: .75rem; color: var(--text2); width: 110px; flex-shrink: 0; }
+		.cbar-track { flex: 1; height: 10px; background: var(--surf3); border-radius: 5px; overflow: hidden; }
+		.cbar-fill { height: 100%; border-radius: 5px; }
+		.cbar-fill.ok   { background: linear-gradient(90deg, #2d7a52, var(--ok)); }
+		.cbar-fill.warn { background: linear-gradient(90deg, #a06020, var(--warn)); }
+		.cbar-fill.ng   { background: linear-gradient(90deg, #a03030, var(--ng)); }
+		.cbar-pct {
+			font-family: var(--font-mono);
+			font-size: .72rem;
+			width: 40px;
+			text-align: right;
+			flex-shrink: 0;
+		}
+		.cbar-pct.ok { color: var(--ok); }
+		.cbar-pct.warn { color: var(--warn); }
+		.cbar-pct.ng { color: var(--ng); }
+
+		.compass-wrap {
+			display: flex;
+			align-items: center;
+			gap: 2rem;
+			margin: 1rem 0;
+			flex-wrap: wrap;
+		}
+		.compass { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
+		.compass svg { width: 100%; height: 100%; }
+
+		.matrix-grid {
+			display: inline-grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 4px;
+			background: var(--surf2);
+			border: 1px solid var(--border2);
+			border-radius: var(--r);
+			padding: .6rem .8rem;
+			margin: .5rem 0;
+		}
+		.m-cell {
+			font-family: var(--font-mono);
+			font-size: .82rem;
+			color: var(--acc3);
+			padding: .2rem .5rem;
+			text-align: center;
+			background: var(--surf3);
+			border-radius: 3px;
+		}
+
+		.diagram-wrap {
+			display: flex;
+			gap: 1.5rem;
+			margin: 1.2rem 0;
+			flex-wrap: wrap;
+		}
+		.diagram-box {
+			flex: 1;
+			min-width: 200px;
+			background: var(--surf2);
+			border: 1px solid var(--border);
+			border-radius: var(--rl);
+			padding: 1rem;
+			text-align: center;
+		}
+		.diagram-box.invalid { border-color: rgba(224,82,82,.3); }
+		.diagram-box.valid   { border-color: rgba(76,175,125,.3); }
+		.diagram-box canvas { border-radius: 6px; }
+		.diagram-label {
+			font-family: var(--font-mono);
+			font-size: .68rem;
+			letter-spacing: .08em;
+			margin-top: .6rem;
+			line-height: 1.4;
+		}
+		.diagram-label.ok { color: var(--ok); }
+		.diagram-label.ng { color: var(--ng); }
+
+		.decision-table {
+			margin: 1rem 0;
+			max-width: 680px;
+			display: flex;
+			flex-direction: column;
+			gap: .5rem;
+		}
+		.decision-row {
+			display: grid;
+			grid-template-columns: auto 1fr;
+			gap: 1rem;
+			padding: .75rem 1rem;
+			background: var(--surf2);
+			border: 1px solid var(--border);
+			border-radius: var(--r);
+			align-items: center;
+		}
+		.decision-tag {
+			font-family: var(--font-mono);
+			font-size: .68rem;
+			letter-spacing: .08em;
+			padding: .25rem .55rem;
+			border-radius: 3px;
+			white-space: nowrap;
+			text-align: center;
+		}
+		.decision-tag.ok { background: rgba(76,175,125,.15); color: var(--ok); border: 1px solid rgba(76,175,125,.3); }
+		.decision-tag.warn { background: rgba(224,160,80,.15); color: var(--warn); border: 1px solid rgba(224,160,80,.3); }
+		.decision-tag.ng { background: rgba(224,82,82,.15); color: var(--ng); border: 1px solid rgba(224,82,82,.3); }
+		.decision-text { font-size: .82rem; color: var(--text2); line-height: 1.55; }
+
+		@media print {
+			.sidebar { display: none; }
+			.page { display: block; }
+			.main { max-width: none; padding: 0; }
+			.hero { padding: 2rem; }
+			.content { padding: 0 2rem 2rem; }
+			.section { break-inside: avoid; }
+		}
+
+		@media (max-width: 800px) {
+			.page { grid-template-columns: 1fr; }
+			.sidebar { display: none; }
+			.hero { padding: 2.5rem 1.5rem 2rem; }
+			.content { padding: 0 1.5rem 3rem; }
+			h2 { font-size: 1.4rem; }
+		}
+	</style>
+</head>
+<body>
+<div class="page">
+
+<nav class="sidebar">
+	<div class="sidebar-logo">
+		<div class="title">End Portal Finder</div>
+		<div class="sub">アルゴリズム技術レポート v3</div>
+	</div>
+	<div class="nav-section">
+		<div class="nav-group-label">Contents</div>
+		<a class="nav-link active" href="#s1"><span class="num">01</span>概要</a>
+		<a class="nav-link" href="#s2"><span class="num">02</span>座標系の定義</a>
+		<a class="nav-link" href="#s3"><span class="num">03</span>単位ベクトル計算</a>
+		<a class="nav-link" href="#s4"><span class="num">04</span>重み付き最小二乗法</a>
+		<a class="nav-link" href="#s5"><span class="num">05</span>後入力データ優先の重み</a>
+		<a class="nav-link" href="#s6"><span class="num">06</span>方向制約検証</a>
+		<a class="nav-link new" href="#s6b"><span class="num">06b</span>レイ交点平均法</a>
+		<a class="nav-link" href="#s7"><span class="num">07</span>収束誤差と信頼度</a>
+		<a class="nav-link" href="#s8"><span class="num">08</span>グラフ描画の数式</a>
+		<a class="nav-link" href="#s9"><span class="num">09</span>交差角と行列式</a>
+		<a class="nav-link" href="#s10"><span class="num">10</span>実装上の注意点</a>
+		<a class="nav-link" href="#s11"><span class="num">11</span>精度向上ガイド</a>
+	</div>
+	<div class="sidebar-footer">
+		<div class="credit">Syrtis</div>
+		<div style="margin-top:.25rem;">Triangulating the void,<br>one Eye of Ender at a time.</div>
+	</div>
+</nav>
+
+<main class="main">
+
+	<div class="hero">
+		<div class="hero-badge">Algorithm Reference <span class="hero-rev">REV.3</span></div>
+		<h1>End Portal Finder<br><em>内部アルゴリズム解説</em></h1>
+		<p class="hero-sub">エンダーアイの軌跡から要塞座標を逆算するために内部で使用している数式・アルゴリズムの完全解説。Rev.3 では「前方制約レイ交点平均法」のフォールバック機構を文書化。最小二乗法の結果が物理的に矛盾した際に自動的に切り替わる代替アルゴリズムを詳述。</p>
+		<div class="hero-meta">
+			<div><div class="meta-label">作成者</div><div class="meta-val">Syrtis</div></div>
+			<div><div class="meta-label">対象ゲーム</div><div class="meta-val">Minecraft Java Edition</div></div>
+			<div><div class="meta-label">計算言語</div><div class="meta-val">JavaScript (IEEE 754 倍精度)</div></div>
+			<div><div class="meta-label">セクション数</div><div class="meta-val">11</div></div>
+		</div>
+	</div>
+
+	<div class="content">
+
+	<!-- ====== S1 ====== -->
+	<section class="section" id="s1">
+		<div class="section-header">
+			<span class="section-num">01</span>
+			<h2>概要</h2>
+		</div>
+		<p>本ツールはエンダーアイ（Eye of Ender）の飛行軌跡を複数回記録し、各軌跡が示す方向線の交点を推定することで、エンドポータルのXZ座標を逆算する。</p>
+		<p>各投てきで「投てき前座標」と「落下地点座標」の 2 点が得られる。この 2 点を結ぶ直線の延長上にポータルが存在するという物理的事実を数学的に利用する。</p>
+		<div class="note">エンダーアイは常にエンドポータルの方向へ飛ぶ。複数の異なる方向から投げた直線が一点に収束する場所がポータルである。</div>
+
+		<h3>処理フローの全体像</h3>
+		<div class="flow">
+			<div class="flow-step"><div class="flow-box"><div class="flow-num">STEP 1</div><div class="flow-label">座標入力</div></div></div>
+			<div class="flow-arrow">›</div>
+			<div class="flow-step"><div class="flow-box"><div class="flow-num">STEP 2</div><div class="flow-label">単位ベクトル計算</div></div></div>
+			<div class="flow-arrow">›</div>
+			<div class="flow-step"><div class="flow-box"><div class="flow-num">STEP 3</div><div class="flow-label">行列 A·b 積み上げ</div></div></div>
+			<div class="flow-arrow">›</div>
+			<div class="flow-step"><div class="flow-box"><div class="flow-num">STEP 4</div><div class="flow-label">逆行列で XZ 推定</div></div></div>
+			<div class="flow-arrow">›</div>
+			<div class="flow-step"><div class="flow-box new"><div class="flow-num">STEP 5</div><div class="flow-label">方向制約検証</div></div></div>
+			<div class="flow-arrow">›</div>
+			<div class="flow-step"><div class="flow-box"><div class="flow-num">STEP 6</div><div class="flow-label">誤差・信頼度算出</div></div></div>
+			<div class="flow-arrow">›</div>
+			<div class="flow-step"><div class="flow-box"><div class="flow-num">STEP 7</div><div class="flow-label">結果表示</div></div></div>
+		</div>
+		<div class="note">STEP 5「方向制約検証」では、最小二乗法の解が物理的に妥当か（飛行方向の前方にあるか）を内積で検証。全行が後方判定の場合、自動的に <strong>前方制約レイ交点平均法</strong>（セクション 06b、Rev.3 追加）にフォールバックする。</div>
+	</section>
+
+	<!-- ====== S2 ====== -->
+	<section class="section" id="s2">
+		<div class="section-header">
+			<span class="section-num">02</span>
+			<h2>Minecraft 座標系の定義</h2>
+		</div>
+		<p>Minecraft の座標系は独自の定義を持つ。本ツールはこの座標系に準拠して全計算を行う。</p>
+		<div class="tbl-wrap">
+			<table>
+				<thead><tr><th>軸</th><th>正方向</th><th>負方向</th><th>本ツールでの用途</th></tr></thead>
+				<tbody>
+					<tr><td class="td-mono">X 軸</td><td>東 (East)</td><td>西 (West)</td><td>ポータル計算に使用</td></tr>
+					<tr><td class="td-mono">Y 軸</td><td>上 (Up)</td><td>下 (Down)</td><td>不使用（XZ 平面のみ）</td></tr>
+					<tr><td class="td-mono">Z 軸</td><td>南 (South)</td><td>北 (North)</td><td>ポータル計算に使用</td></tr>
+				</tbody>
+			</table>
+		</div>
+
+		<div class="compass-wrap">
+			<canvas class="compass" id="compass-canvas" width="140" height="140"></canvas>
+			<div>
+				<p style="margin-bottom:.4rem;">グラフ描画において：</p>
+				<ul class="report-list">
+					<li>キャンバス右方向 (+canvas X) ＝ Minecraft の +X（東）</li>
+					<li>キャンバス下方向 (+canvas Y) ＝ Minecraft の +Z（南）</li>
+					<li>北は画面の上、南は画面の下に対応</li>
+				</ul>
+			</div>
+		</div>
+	</section>
+
+	<!-- ====== S3 ====== -->
+	<section class="section" id="s3">
+		<div class="section-header">
+			<span class="section-num">03</span>
+			<h2>投てき方向ベクトルの計算</h2>
+		</div>
+
+		<h3>入力データ</h3>
+		<div class="tbl-wrap">
+			<table>
+				<thead><tr><th>変数</th><th>意味</th><th>確認方法</th></tr></thead>
+				<tbody>
+					<tr><td class="td-mono">px_i</td><td>投てき前の X 座標</td><td>F3 画面</td></tr>
+					<tr><td class="td-mono">pz_i</td><td>投てき前の Z 座標</td><td>F3 画面</td></tr>
+					<tr><td class="td-mono">lx_i</td><td>落下地点の X 座標</td><td>アイ着地後 F3</td></tr>
+					<tr><td class="td-mono">lz_i</td><td>落下地点の Z 座標</td><td>アイ着地後 F3</td></tr>
+				</tbody>
+			</table>
+		</div>
+
+		<h3>差分ベクトル</h3>
+		<div class="formula-group">
+			<span class="f">Δx_i = lx_i − px_i</span>
+			<span class="f">Δz_i = lz_i − pz_i</span>
+		</div>
+
+		<h3>ベクトル長</h3>
+		<div class="formula">len_i = √(Δx_i² + Δz_i²)</div>
+		<div class="warn-box">len_i &lt; 1×10⁻⁶ の場合、投てき前と落下地点が同一とみなしその行をスキップする。</div>
+
+		<h3>単位ベクトルへの正規化</h3>
+		<div class="formula-group">
+			<span class="f">dx_i = Δx_i / len_i</span>
+			<span class="f">dz_i = Δz_i / len_i</span>
+		</div>
+		<p>これにより <code class="icode">‖d_i‖ = 1</code> が保証される。</p>
+
+		<h3>ベアリング角（表示用）</h3>
+		<div class="formula">bearing_i = ( atan2(dx_i, −dz_i) × 180/π + 360 ) mod 360</div>
+		<div class="note">北 = 0°、東 = 90°、南 = 180°、西 = 270°。時計回りに増加する。</div>
+	</section>
+
+	<!-- ====== S4 ====== -->
+	<section class="section" id="s4">
+		<div class="section-header">
+			<span class="section-num">04</span>
+			<h2>重み付き最小二乗法による交点推定</h2>
+		</div>
+
+		<h3>問題の定式化</h3>
+		<p>各投てき i は「点 <code class="icode">q_i = (px_i, pz_i)</code> を通り、方向 <code class="icode">d_i = (dx_i, dz_i)</code> に延びる直線」を定義する。</p>
+		<p>n 本の直線の最近接点 <code class="icode">p = (X, Z)</code> を求める問題は、以下の最小化問題として定式化される。</p>
+		<div class="formula">minimize  Σᵢ wᵢ · ‖(p − qᵢ) − ((p−qᵢ)·dᵢ) dᵢ‖²</div>
+		<p>第 2 項は「p から直線への射影ベクトル」であり、全体は「p から直線 i への垂直距離の二乗」を表す。<code class="icode">wᵢ</code> は各投てきの重み（次節参照）。</p>
+
+		<h3>行列形式への変換</h3>
+		<p>最小化条件（偏微分 = 0）を整理すると、以下の 2×2 線形方程式になる。</p>
+		<div class="formula">A · p = b</div>
+		<div class="formula-group">
+			<span class="f">A = Σᵢ wᵢ (I − dᵢ dᵢᵀ)</span>
+			<span class="f">b = Σᵢ wᵢ (I − dᵢ dᵢᵀ) qᵢ</span>
+		</div>
+
+		<h3>行列 A と b の成分展開</h3>
+		<p>(I − d dᵀ) の成分：</p>
+		<div style="display:flex; gap:1rem; align-items:flex-start; flex-wrap:wrap; margin:.5rem 0 1rem;">
+			<div class="matrix-grid">
+				<div class="m-cell">1−dx²</div>
+				<div class="m-cell">−dx·dz</div>
+				<div class="m-cell">−dz·dx</div>
+				<div class="m-cell">1−dz²</div>
+			</div>
+			<div style="padding:.5rem 0; color:var(--text3); font-size:.82rem; align-self:center;">
+				m00, m01<br>m10, m11
+			</div>
+		</div>
+		<p>全投てきの重み付き積み上げ：</p>
+		<div class="formula-group">
+			<span class="f">A[0][0] = Σ wᵢ·m00ᵢ    A[0][1] = Σ wᵢ·m01ᵢ</span>
+			<span class="f">A[1][0] = Σ wᵢ·m10ᵢ    A[1][1] = Σ wᵢ·m11ᵢ</span>
+			<span class="f">b[0] = Σ wᵢ (m00ᵢ·px_i + m01ᵢ·pz_i)</span>
+			<span class="f">b[1] = Σ wᵢ (m10ᵢ·px_i + m11ᵢ·pz_i)</span>
+		</div>
+
+		<h3>連立方程式の解法（クラメールの公式）</h3>
+		<div class="formula">det(A) = A[0][0]·A[1][1] − A[0][1]·A[1][0]</div>
+		<div class="warn-box">|det(A)| &lt; 1×10⁻¹⁰ の場合、全直線が平行とみなし計算を中断する。</div>
+		<div class="formula-group">
+			<span class="f">X = ( A[1][1]·b[0] − A[0][1]·b[1] ) / det(A)</span>
+			<span class="f">Z = ( A[0][0]·b[1] − A[1][0]·b[0] ) / det(A)</span>
+		</div>
+		<p>これが推定ポータル座標 (X, Z) の候補値となる。確定する前に、次節で物理的妥当性を検証する。</p>
+	</section>
+
+	<!-- ====== S5 ====== -->
+	<section class="section" id="s5">
+		<div class="section-header">
+			<span class="section-num">05</span>
+			<h2>後入力データの優先重み付け</h2>
+		</div>
+		<p>プレイヤーがポータルへ近づくにつれ、より後に投げたデータほど精度が高い。テーブルの下の行（後から追加した行）ほど重要度が高いと仮定し、指数的な重みを採用する。</p>
+
+		<h3>重み関数</h3>
+		<div class="formula">wᵢ = 1.5ⁱ    (i は 0 始まりの行インデックス)</div>
+		<p>この重みは <strong>最小二乗法</strong>（メイン）と <strong>レイ交点平均法</strong>（フォールバック）の両方で使用される。レイ交点法ではペア (i, j) の重みは <code class="icode">wᵢⱼ = 1.5ⁱ × 1.5ʲ</code> となる。</p>
+
+		<div class="weight-bars">
+			<div class="wbar-row"><div class="wbar-label">行 1 (i=0)</div><div class="wbar-track"><div class="wbar-fill" style="width:20%"></div></div><div class="wbar-val">1.00</div></div>
+			<div class="wbar-row"><div class="wbar-label">行 2 (i=1)</div><div class="wbar-track"><div class="wbar-fill" style="width:30%"></div></div><div class="wbar-val">1.50</div></div>
+			<div class="wbar-row"><div class="wbar-label">行 3 (i=2)</div><div class="wbar-track"><div class="wbar-fill" style="width:45%"></div></div><div class="wbar-val">2.25</div></div>
+			<div class="wbar-row"><div class="wbar-label">行 4 (i=3)</div><div class="wbar-track"><div class="wbar-fill" style="width:67%"></div></div><div class="wbar-val">3.38</div></div>
+			<div class="wbar-row"><div class="wbar-label">行 5 (i=4)</div><div class="wbar-track"><div class="wbar-fill" style="width:100%"></div></div><div class="wbar-val">5.06</div></div>
+		</div>
+		<div class="note">重みの底 1.5 は「直近のデータを強調しつつ、古いデータも完全には無視しない」バランスを意図して選定した。</div>
+	</section>
+
+	<!-- ====== S6 NEW ====== -->
+	<section class="section" id="s6">
+		<div class="section-header">
+			<span class="section-num">06</span>
+			<h2>方向制約検証<span class="section-new">REV.3 改訂</span></h2>
+		</div>
+
+		<h3>なぜ必要か</h3>
+		<p>最小二乗法は直線を <strong>両方向に無限</strong> に延びるものとして扱う。しかしエンダーアイは投てき前から落下地点へという <strong>明確な向き</strong> を持ち、ポータルは必ずその「前方」に存在する。</p>
+		<p>投てきが互いにほぼ平行な場合、最小二乗法は <strong>後方延長線が交わる点</strong> を解として返してしまうことがある。これは数学的には正しいが、物理的にはあり得ない結果。</p>
+
+		<div class="diagram-wrap">
+			<div class="diagram-box invalid">
+				<canvas id="c-backward" width="200" height="170"></canvas>
+				<div class="diagram-label ng">NG — 後方解<br>飛行方向と真逆に推定</div>
+			</div>
+			<div class="diagram-box valid">
+				<canvas id="c-forward" width="200" height="170"></canvas>
+				<div class="diagram-label ok">OK — 前方解<br>飛行方向と一致</div>
+			</div>
+		</div>
+
+		<h3>制約式（内積判定）</h3>
+		<p>推定座標 (X, Z) が投てき i の前方にあるか、内積で判定する。</p>
+		<div class="formula-group">
+			<span class="f">v_i = (X − px_i, Z − pz_i)     ← 投てき前→推定点ベクトル</span>
+			<span class="f">dot_i = v_i · d_i = (X−px_i)·dx_i + (Z−pz_i)·dz_i</span>
+		</div>
+		<div class="formula-group">
+			<span class="f">dot_i &gt; 0  →  前方（物理的に妥当）</span>
+			<span class="f">dot_i ≤ 0  →  後方（物理的に不可能）</span>
+		</div>
+		<div class="note">この検証は「単位ベクトルの符号情報を捨てない」ためのもの。1 本でも投てきデータがあれば、ポータルが X 軸・Z 軸のどちら側にあるかは確定する。</div>
+
+		<h3>3 段階の判定ロジック</h3>
+		<p>全 n 本の投てきについて dot_i を計算し、後方判定数 (<code class="icode">backwardCount</code>) と前方判定数 (<code class="icode">forwardCount</code>) を集計する。</p>
+
+		<div class="decision-table">
+			<div class="decision-row">
+				<div class="decision-tag ok">PASS</div>
+				<div class="decision-text">backwardCount = 0（全行が前方）<br>→ 結果をそのまま採用</div>
+			</div>
+			<div class="decision-row">
+				<div class="decision-tag warn">WARN</div>
+				<div class="decision-text">1 ≤ backwardCount &lt; n（一部が後方）<br>→ 結果は採用するが、矛盾する行番号を警告で表示</div>
+			</div>
+			<div class="decision-row">
+				<div class="decision-tag ng">FALLBACK</div>
+				<div class="decision-text">backwardCount = n（全行が後方）<br>→ 最小二乗法を <strong>放棄</strong>し、<strong>前方制約レイ交点平均法</strong>に切替（次節）</div>
+			</div>
+		</div>
+
+		<h3>フォールバック後の再検証</h3>
+		<p>レイ交点法に切り替えた後、新しい結果に対してもう一度 dot 判定を行う。これは最終結果が物理的に妥当か確認するための保険であり、レイ交点法の加重平均が個々のペアでは前方でも、平均後の点が別の行から見て後方になり得るため必須のステップである。</p>
+		<ul class="report-list">
+			<li>再検証で全行が前方 → 採用（「切り替えました」の警告付き）</li>
+			<li>再検証で一部が後方 → 採用しつつ、矛盾する行番号の警告を追加</li>
+			<li><strong>再検証でも全行が後方のまま</strong> → レイ交点法も実質失敗とみなし <strong>REJECT</strong>（最終エラー）</li>
+			<li>レイ交点法自体が失敗（前方交差ペアが 0 件）→ 同じく <strong>REJECT</strong></li>
+		</ul>
+		<div class="warn-box">「再検証でも全行が後方」は n ≥ 3 の場合にのみ起こりうる。n = 2 では前方交点の定義上、成功したレイ交点は自動的に両方の直線にとって前方になるため、この分岐は発生しない（数学的に証明可能）。</div>
+
+		<div class="ng-box">
+			例：4 本全てが東南東 (≈27°) を向いている入力で、最小二乗法が NW (-1003, -563) を返した場合。<br>
+			検証結果 → backwardCount = 4（全行 NG）→ レイ交点平均法に切替 → 前方の SE 領域に結果を再計算
+		</div>
+	</section>
+
+	<!-- ====== S6.5 (REV.3 追加: レイ交点法) ====== -->
+	<section class="section" id="s6b">
+		<div class="section-header">
+			<span class="section-num">06b</span>
+			<h2>前方制約レイ交点平均法<span class="section-new">REV.3 新規</span></h2>
+		</div>
+
+		<h3>アルゴリズムの位置づけ</h3>
+		<p>最小二乗法が「全行と逆向き」の解を返したとき自動起動するフォールバック。<strong>直線</strong>を扱う最小二乗法と異なり、<strong>レイ（半直線）</strong>として扱うことで物理的不可能な後方解を構造的に排除する。</p>
+
+		<h3>レイ間の前方交点</h3>
+		<p>2 本のレイ R₁ = q₁ + t₁ d₁ (t₁ ≥ 0) と R₂ = q₂ + t₂ d₂ (t₂ ≥ 0) の交点を求める。</p>
+		<div class="formula-group">
+			<span class="f">det = d₂ₓ · d₁_z − d₁ₓ · d₂_z</span>
+			<span class="f">b = q₂ − q₁  (差分ベクトル)</span>
+			<span class="f">t₁ = (d₂ₓ · b_z − d₂_z · b_x) / det</span>
+			<span class="f">t₂ = (d₁ₓ · b_z − d₁_z · b_x) / det</span>
+		</div>
+		<div class="warn-box">|det| &lt; 1×10⁻¹⁰ → 平行とみなし null。<br>t₁ ≤ 0 または t₂ ≤ 0 → 後方交差なので null（前方制約違反）。</div>
+		<p>両方の t が正の場合のみ、交点座標を返す：</p>
+		<div class="formula">P = q₁ + t₁ · d₁</div>
+
+		<h3>全ペアの重み付き平均</h3>
+		<p>n 本のレイから C(n, 2) = n(n−1)/2 ペアを取り出し、それぞれ前方交点を計算。null 以外の交点を重み付きで平均する。</p>
+		<div class="formula-group">
+			<span class="f">wᵢⱼ = 1.5ⁱ × 1.5ʲ      (i &lt; j、後の行ペアほど大きい)</span>
+			<span class="f">X = Σ (wᵢⱼ · Pᵢⱼ.x) / Σ wᵢⱼ</span>
+			<span class="f">Z = Σ (wᵢⱼ · Pᵢⱼ.z) / Σ wᵢⱼ</span>
+		</div>
+		<p>有効ペア数（pairCount）が 0 の場合、フォールバックも失敗 → 最終 REJECT。</p>
+
+		<h3>最終 REJECT 時の方向推定</h3>
+		<p>フォールバックも失敗した場合、ポータル位置は確定できないが「方向」だけは確定する。全投てきの単位ベクトルの平均から方位を求めユーザーに通知。</p>
+		<div class="formula-group">
+			<span class="f">avgDx = (Σ dx_i) / n</span>
+			<span class="f">avgDz = (Σ dz_i) / n</span>
+			<span class="f">avgLen = √(avgDx² + avgDz²)</span>
+			<span class="f">avgBearing = ( atan2(avgDx/avgLen, −avgDz/avgLen) × 180/π + 360 ) mod 360</span>
+		</div>
+		<div class="ng-box">
+			REJECT 例：投てきが完全に平行（角度差ゼロ）または交差角が極めて小さい場合。<br>
+			→ 「ポータルは <strong>東南方向</strong> にあるが距離不明」とエラー表示し、別方向からの再投てきを促す。
+		</div>
+	</section>
+
+	<!-- ====== S7 ====== -->
+	<section class="section" id="s7">
+		<div class="section-header">
+			<span class="section-num">07</span>
+			<h2>収束誤差と信頼度スコア</h2>
+		</div>
+
+		<h3>収束誤差（重み付き平均垂直距離）</h3>
+		<p>推定点 (X, Z) から各直線への垂直距離の重み付き平均を「収束誤差」とする。</p>
+		<div class="formula-group">
+			<span class="f">r = (X − px_i,  Z − pz_i)</span>
+			<span class="f">dot = r · d_i</span>
+			<span class="f">perp = r − dot·d_i      ← 垂直成分</span>
+			<span class="f">dist_i = ‖perp‖ = √(perp_x² + perp_z²)</span>
+		</div>
+		<div class="formula">error = Σ(wᵢ · dist_i) / Σ wᵢ</div>
+		<p>単位はブロック。値が小さいほど各直線がよく一点に集まっていることを示す。</p>
+
+		<h3>信頼度スコア（0〜100%）</h3>
+		<div class="formula">confidence = clamp( 100 − error×2 + (n−2)×8,  0, 100 )</div>
+
+		<div class="tbl-wrap">
+			<table>
+				<thead><tr><th>項</th><th>係数</th><th>効果</th></tr></thead>
+				<tbody>
+					<tr><td class="td-mono">100</td><td>基準値</td><td>最大スコア</td></tr>
+					<tr><td class="td-mono">−error × 2</td><td>誤差ペナルティ</td><td>誤差 1 ブロック → −2%</td></tr>
+					<tr><td class="td-mono">+(n−2) × 8</td><td>データ数ボーナス</td><td>3 件目以降 1 件 → +8%</td></tr>
+				</tbody>
+			</table>
+		</div>
+
+		<h3>信頼度の色分け</h3>
+		<div class="conf-bars">
+			<div class="cbar-row"><div class="cbar-label">高信頼（70%+）</div><div class="cbar-track"><div class="cbar-fill ok" style="width:88%"></div></div><div class="cbar-pct ok">88%</div></div>
+			<div class="cbar-row"><div class="cbar-label">中信頼（40〜69%）</div><div class="cbar-track"><div class="cbar-fill warn" style="width:55%"></div></div><div class="cbar-pct warn">55%</div></div>
+			<div class="cbar-row"><div class="cbar-label">低信頼（〜39%）</div><div class="cbar-track"><div class="cbar-fill ng" style="width:18%"></div></div><div class="cbar-pct ng">18%</div></div>
+		</div>
+	</section>
+
+	<!-- ====== S8 ====== -->
+	<section class="section" id="s8">
+		<div class="section-header">
+			<span class="section-num">08</span>
+			<h2>投てき方向マップの描画</h2>
+		</div>
+
+		<h3>座標変換（ワールド → スクリーン）</h3>
+		<p>Canvas（360×360 px）への変換。パディング pad = 40 px、描画半径 R = 140 px。</p>
+		<div class="formula-group">
+			<span class="f">midX = (minX + maxX) / 2</span>
+			<span class="f">midZ = (minZ + maxZ) / 2</span>
+			<span class="f">span = max(maxX−minX, maxZ−minZ, 80) × 1.5</span>
+			<span class="f">screen_x = cx + (wx − midX) / span × R × 2</span>
+			<span class="f">screen_y = cy + (wz − midZ) / span × R × 2</span>
+		</div>
+		<div class="note">span の下限 80 は、全座標が集中している場合にマップが縮退しないためのガード値。</div>
+
+		<h3>矢印の描画（Rev.2 簡略化）</h3>
+		<p>ワールド座標とスクリーン座標は同一方向の軸を共有しているため（+X=右, +Z=下）、単位ベクトル (dx, dz) を直接スクリーン座標のピクセル変位として使用できる。</p>
+		<div class="formula-group">
+			<span class="f">arrPx = 50                       ← 矢印のピクセル長（固定）</span>
+			<span class="f">tip_x = from_x + dx_i × arrPx</span>
+			<span class="f">tip_y = from_y + dz_i × arrPx</span>
+			<span class="f">arrow_angle = atan2(dz_i, dx_i)  ← 矢印ヘッドの向き</span>
+		</div>
+		<div class="note">スケール変換 (× scale) を矢印に適用しないことで、座標範囲が広くても狭くても常に 50 ピクセルの一定長で描画される。これにより視認性が安定する。</div>
+
+		<h3>表示方向は「実際の記録どおり」（改訂）</h3>
+		<p>過去の実装では、方向制約に違反する行の矢印を推定ポータル方向へ<strong>こっそり反転</strong>させて表示していた。しかしこれは警告文（「行 X の飛行方向が矛盾しています」）と矛盾する見た目になり、データの問題を視覚的に隠してしまう欠陥だった。</p>
+		<div class="ng-box">
+			廃止した処理：<code class="icode">if (v_i · d_i &lt; 0) then d_i ← −d_i</code><br>
+			この反転により、矛盾行の矢印が「あたかも正しい方向を向いているか」のように見えてしまっていた。
+		</div>
+		<p>現在の実装ではこの反転を行わず、<strong>常に実際に記録された投てき方向をそのまま描画する</strong>。方向制約に違反する行は、矢印が推定ポータル（★）から外れた方向を向いて表示されるため、警告文と矛盾なく問題を視覚的に確認できる。</p>
+		<div class="note">グラフは「見栄えを整える」ためのものではなく、「入力データの整合性を診断する」ためのものである、という設計方針への転換。</div>
+	</section>
+
+	<!-- ====== S9 ====== -->
+	<section class="section" id="s9">
+		<div class="section-header">
+			<span class="section-num">09</span>
+			<h2>交差角と行列式の関係</h2>
+		</div>
+		<p>行列式 det(A) は 2 本の直線の場合「交差の鋭さ」を表す。</p>
+
+		<div class="diagram-wrap">
+			<div class="diagram-box">
+				<canvas id="c-parallel" width="180" height="160"></canvas>
+				<div class="diagram-label ng">NG — 平行に近い<br>det ≈ 0 → 計算不能</div>
+			</div>
+			<div class="diagram-box">
+				<canvas id="c-cross" width="180" height="160"></canvas>
+				<div class="diagram-label ok">OK — 直交に近い<br>det 大 → 安定した交点</div>
+			</div>
+		</div>
+
+		<div class="tbl-wrap">
+			<table>
+				<thead><tr><th>交差角</th><th>det(A) の大きさ</th><th>推定精度</th></tr></thead>
+				<tbody>
+					<tr><td>90°（直交）</td><td class="td-ok">最大</td><td>交点が一意・安定</td></tr>
+					<tr><td>45°</td><td class="td-warn">中程度</td><td>良好な精度</td></tr>
+					<tr><td>0°（平行）</td><td class="td-ng">0 に近い</td><td>計算不能</td></tr>
+				</tbody>
+			</table>
+		</div>
+
+		<h3>直交する場合の行列式（2 直線）</h3>
+		<div class="formula-group">
+			<span class="f">d₁ = (1, 0)  d₂ = (0, 1)  → 東と南に直交</span>
+			<span class="f">A = (I − d₁d₁ᵀ) + (I − d₂d₂ᵀ) = [[0,0],[0,1]] + [[1,0],[0,0]] = I</span>
+			<span class="f">det(A) = 1  →  交点が一意に定まる</span>
+		</div>
+
+		<h3>平行する場合</h3>
+		<div class="formula-group">
+			<span class="f">d₁ = d₂ = (1, 0)  → 同じ方向</span>
+			<span class="f">A = 2 × [[0,0],[0,1]] = [[0,0],[0,2]]</span>
+			<span class="f">det(A) = 0  →  解なし</span>
+		</div>
+		<div class="warn-box">「ほぼ平行」のケース（det ≠ 0 だが小さい）では、計算結果が後方に飛ぶ現象が頻発する。これを救済するのが STEP 5 の方向制約検証。</div>
+	</section>
+
+	<!-- ====== S10 ====== -->
+	<section class="section" id="s10">
+		<div class="section-header">
+			<span class="section-num">10</span>
+			<h2>実装上の数値的注意点</h2>
+		</div>
+
+		<h3>浮動小数点精度</h3>
+		<ul class="report-list">
+			<li>JavaScript の Number 型は IEEE 754 倍精度（53 ビット仮数部）</li>
+			<li>Minecraft 座標は整数〜小数 3 桁程度のため、計算上の丸め誤差は無視できる</li>
+			<li>行列式の閾値 1×10⁻¹⁰ は倍精度での実用的なゼロ判定値</li>
+		</ul>
+
+		<h3>表示フォーマット</h3>
+		<p>結果座標の表示は小数点以下 2 桁まで（末尾ゼロ省略）：</p>
+		<div class="formula">fmt(v) = parseFloat( round(v×100)/100 ).toFixed(2)</div>
+		<p>例：1234.50 → "1234.5"、1234.00 → "1234"</p>
+
+		<h3>スパン下限保証</h3>
+		<p>全座標が非常に近い場合にグラフが縮退しないよう、最低 80 ブロック相当を保証する。</p>
+		<div class="formula">span = max(maxX−minX, maxZ−minZ, 80) × 1.5</div>
+
+		<h3>行番号の一貫性</h3>
+		<p>投てき行が「投てき前と落下地点が同じ」等の理由でスキップされた場合、有効なデータだけを詰めて連番を振ると、テーブル上の表示行番号とズレが生じる。これを防ぐため、各投てきには <code class="icode">rowNum</code>（テーブル上の実際の表示行番号）を保持させ、詳細データ表・警告文・グラフの番号ラベルすべてでこの値を統一的に参照する。</p>
+
+		<h3>エラー時の表示状態リセット</h3>
+		<p><code class="icode">calculate()</code> は呼び出しの冒頭で必ず結果カード・グラフカードを非表示にする。これにより、どのエラー分岐で処理を打ち切っても、前回の（もはや無効な）計算結果が画面に残り続けることがない。</p>
+		<div class="note">エラーで処理を中断する直前には、それまでに蓄積した警告（行スキップの理由など）も破棄せず表示する（<code class="icode">flushWarnings()</code>）。例えば入力行がすべて重複座標でスキップされた場合、「データが2件未満」というエラーだけでなく、「なぜ0件になったか」の理由もあわせて提示される。</div>
+	</section>
+
+	<!-- ====== S11 ====== -->
+	<section class="section" id="s11">
+		<div class="section-header">
+			<span class="section-num">11</span>
+			<h2>精度向上のための実践ガイド</h2>
+		</div>
+
+		<h3>理想的な投てきパターン</h3>
+		<div class="tbl-wrap">
+			<table>
+				<thead><tr><th>データ数</th><th>推奨交差角</th><th>推奨手順</th></tr></thead>
+				<tbody>
+					<tr><td>2 件</td><td>60〜90°</td><td>直交に近い方向から 2 回</td></tr>
+					<tr><td>3 件</td><td>各 60°以上</td><td>三角形を描くように 3 方向から</td></tr>
+					<tr><td>4 件+</td><td>均等分散</td><td>後の行ほど重要（ポータル近傍から）</td></tr>
+				</tbody>
+			</table>
+		</div>
+
+		<h3>よくある失敗パターン</h3>
+		<ul class="report-list">
+			<li>同じ場所から同じ方向に何度も投げる → 平行直線、計算不能</li>
+			<li>移動距離が短く、結果として 4 本すべて 25〜30° 程度の似た角度に → 「ほぼ平行」で方向制約 REJECT</li>
+			<li>1 本目と 2 本目の方向が近い（10°以下）→ det が小さく誤差増大</li>
+			<li>落下地点を誤って記録（バウンド後の座標など）→ 外れ値データとなる</li>
+		</ul>
+
+		<h3>信頼度と推奨アクション</h3>
+		<div class="tbl-wrap">
+			<table>
+				<thead><tr><th>信頼度</th><th>誤差目安</th><th>推奨アクション</th></tr></thead>
+				<tbody>
+					<tr><td class="td-ok">90%+</td><td>&lt; 5 ブロック</td><td>推定座標へ直行してよい</td></tr>
+					<tr><td class="td-ok">70〜89%</td><td>5〜20 ブロック</td><td>近づきながら追加投てきで確認</td></tr>
+					<tr><td class="td-warn">40〜69%</td><td>20〜40 ブロック</td><td>別方向からの追加データを強く推奨</td></tr>
+					<tr><td class="td-ng">40% 未満</td><td>40 ブロック超</td><td>データ見直し・追加が必要</td></tr>
+					<tr><td class="td-ng">REJECT</td><td>—</td><td>方向制約 NG。別方向から投げ直し必須</td></tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	</div>
+</main>
+</div>
+
+<script>
+	// アクティブナビ
+	(function() {
+		var links = document.querySelectorAll('.nav-link');
+		var sections = Array.from(document.querySelectorAll('.section'));
+		function update() {
+			var scrollY = window.scrollY + 80;
+			var current = sections[0];
+			for (var i = 0; i < sections.length; i++) {
+				if (sections[i].offsetTop <= scrollY) current = sections[i];
+			}
+			links.forEach(function(l) {
+				l.classList.toggle('active', l.getAttribute('href') === '#' + current.id);
+			});
+		}
+		window.addEventListener('scroll', update, { passive: true });
+		update();
+	})();
+
+	// コンパス
+	(function() {
+		var canvas = document.getElementById('compass-canvas');
+		if (!canvas) return;
+		var ctx = canvas.getContext('2d');
+		var W = canvas.width, H = canvas.height;
+		var cx = W/2, cy = H/2, R = 56;
+		ctx.fillStyle = '#13161f';
+		ctx.beginPath(); ctx.arc(cx, cy, R+8, 0, Math.PI*2); ctx.fill();
+		ctx.strokeStyle = '#272c3f'; ctx.lineWidth = 1;
+		ctx.beginPath(); ctx.arc(cx, cy, R+8, 0, Math.PI*2); ctx.stroke();
+		for (var i = 0; i < 36; i++) {
+			var a = i * Math.PI * 2 / 36;
+			var len = i % 9 === 0 ? 10 : 5;
+			var inner = R - len;
+			ctx.strokeStyle = i % 9 === 0 ? '#555d7a' : '#272c3f';
+			ctx.lineWidth = i % 9 === 0 ? 1.5 : 0.8;
+			ctx.beginPath();
+			ctx.moveTo(cx + Math.cos(a)*inner, cy + Math.sin(a)*inner);
+			ctx.lineTo(cx + Math.cos(a)*R,     cy + Math.sin(a)*R);
+			ctx.stroke();
+		}
+		var dirs = [
+			{ label: 'N', angle: -Math.PI/2, color: '#e05252' },
+			{ label: 'E', angle: 0,           color: '#9aa0b8' },
+			{ label: 'S', angle:  Math.PI/2,  color: '#9aa0b8' },
+			{ label: 'W', angle:  Math.PI,    color: '#9aa0b8' },
+		];
+		ctx.font = 'bold 11px Share Tech Mono, monospace';
+		ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+		dirs.forEach(function(d) {
+			var lx = cx + Math.cos(d.angle) * (R - 18);
+			var ly = cy + Math.sin(d.angle) * (R - 18);
+			ctx.fillStyle = d.color;
+			ctx.fillText(d.label, lx, ly);
+		});
+		ctx.strokeStyle = '#333a55'; ctx.lineWidth = 0.8;
+		ctx.beginPath(); ctx.moveTo(cx-R+4, cy); ctx.lineTo(cx+R-4, cy); ctx.stroke();
+		ctx.beginPath(); ctx.moveTo(cx, cy-R+4); ctx.lineTo(cx, cy+R-4); ctx.stroke();
+		ctx.fillStyle = '#7c5cfc';
+		ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2); ctx.fill();
+	})();
+
+	// 平行/直交ダイアグラム
+	function drawLinesDiagram(canvasId, angle1, angle2, col1, col2, portal) {
+		var canvas = document.getElementById(canvasId);
+		if (!canvas) return;
+		var ctx = canvas.getContext('2d');
+		var W = canvas.width, H = canvas.height;
+		ctx.fillStyle = '#0f1118'; ctx.fillRect(0,0,W,H);
+		var cx = W/2, cy = H/2;
+		function drawLine(a, col) {
+			var dx = Math.cos(a), dy = Math.sin(a);
+			var ox = cx - dx*20, oy = cy - dy*20;
+			var ext = Math.max(W, H);
+			ctx.save();
+			ctx.setLineDash([4,4]);
+			ctx.strokeStyle = col; ctx.globalAlpha = 0.25; ctx.lineWidth = 1.2;
+			ctx.beginPath();
+			ctx.moveTo(ox, oy);
+			ctx.lineTo(ox + dx*ext*2, oy + dy*ext*2);
+			ctx.stroke();
+			ctx.restore();
+			ctx.save();
+			ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash([]);
+			ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox+dx*55, oy+dy*55); ctx.stroke();
+			var hl = 8;
+			ctx.beginPath();
+			ctx.moveTo(ox+dx*55, oy+dy*55);
+			ctx.lineTo(ox+dx*55 - hl*Math.cos(a-0.4), oy+dy*55 - hl*Math.sin(a-0.4));
+			ctx.moveTo(ox+dx*55, oy+dy*55);
+			ctx.lineTo(ox+dx*55 - hl*Math.cos(a+0.4), oy+dy*55 - hl*Math.sin(a+0.4));
+			ctx.stroke();
+			ctx.fillStyle = col; ctx.beginPath(); ctx.arc(ox, oy, 4, 0, Math.PI*2); ctx.fill();
+			ctx.restore();
+		}
+		drawLine(angle1, col1);
+		drawLine(angle2, col2);
+		if (portal) {
+			ctx.save();
+			ctx.font = '18px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+			ctx.fillStyle = '#a07ff5';
+			ctx.shadowColor = '#7c5cfc'; ctx.shadowBlur = 10;
+			ctx.fillText('★', cx + portal[0], cy + portal[1]);
+			ctx.restore();
+		}
+	}
+
+	drawLinesDiagram('c-parallel', Math.PI*0.38, Math.PI*0.45, '#00c9b1', '#f59e42', null);
+	drawLinesDiagram('c-cross',    Math.PI*0.15,  Math.PI*0.65, '#00c9b1', '#f59e42', [5, -5]);
+
+	// REJECT / PASS ダイアグラム
+	function drawDirCase(canvasId, forwardSolution) {
+		var canvas = document.getElementById(canvasId);
+		if (!canvas) return;
+		var ctx = canvas.getContext('2d');
+		var W = canvas.width, H = canvas.height;
+		ctx.fillStyle = '#0f1118'; ctx.fillRect(0,0,W,H);
+		var cx = W/2, cy = H/2;
+
+		// 2本の矢印（southeast方向）
+		var starts = [
+			{ x: 40, y: 110, col: '#00c9b1' },
+			{ x: 60, y: 130, col: '#f59e42' }
+		];
+		var ang = -0.55;  // 上向き斜め (northeast in canvas → northwest-like)
+		// 実は東南東っぽくしたい: dx>0, dy>0 ぐらいの角度
+		ang = 0.45;  // x:cos(0.45), y:sin(0.45) → 右下
+
+		starts.forEach(function(s, i) {
+			var a = i === 0 ? 0.42 : 0.48;
+			var dx = Math.cos(a), dy = Math.sin(a);
+			// 矢印
+			ctx.save();
+			ctx.strokeStyle = s.col; ctx.lineWidth = 2;
+			ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x + dx*42, s.y + dy*42); ctx.stroke();
+			var hl = 8;
+			ctx.beginPath();
+			ctx.moveTo(s.x + dx*42, s.y + dy*42);
+			ctx.lineTo(s.x + dx*42 - hl*Math.cos(a-0.4), s.y + dy*42 - hl*Math.sin(a-0.4));
+			ctx.moveTo(s.x + dx*42, s.y + dy*42);
+			ctx.lineTo(s.x + dx*42 - hl*Math.cos(a+0.4), s.y + dy*42 - hl*Math.sin(a+0.4));
+			ctx.stroke();
+			ctx.fillStyle = s.col; ctx.beginPath(); ctx.arc(s.x, s.y, 4, 0, Math.PI*2); ctx.fill();
+			ctx.restore();
+			// 点線（両方向の延長）
+			ctx.save();
+			ctx.setLineDash([4,3]); ctx.strokeStyle = s.col; ctx.globalAlpha = 0.18; ctx.lineWidth = 1;
+			ctx.beginPath();
+			ctx.moveTo(s.x - dx*200, s.y - dy*200);
+			ctx.lineTo(s.x + dx*250, s.y + dy*250);
+			ctx.stroke();
+			ctx.restore();
+		});
+
+		// ★を描く位置
+		var sx, sy, label, labelColor;
+		if (forwardSolution) {
+			// 矢印の前方
+			sx = W - 18;
+			sy = H - 18;
+			label = '前方解'; labelColor = '#4caf7d';
+		} else {
+			// 矢印の後方
+			sx = 18;
+			sy = 18;
+			label = '後方解'; labelColor = '#e05252';
+		}
+		ctx.save();
+		ctx.font = '20px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+		ctx.fillStyle = labelColor;
+		ctx.shadowColor = labelColor; ctx.shadowBlur = 8;
+		ctx.fillText('★', sx, sy);
+		ctx.restore();
+	}
+
+	drawDirCase('c-backward', false);
+	drawDirCase('c-forward', true);
+</script>
+</body>
+</html>
