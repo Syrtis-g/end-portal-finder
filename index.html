@@ -212,9 +212,86 @@
 			letter-spacing: .03em;
 		}
 
+		.debug-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+		/* ===== スマホ向けレイアウト ===== */
 		@media(max-width:600px) {
-			h1 { font-size: 1.3rem; }
-			.result-value { font-size: 1.3rem; }
+			body { padding: 1.25rem .75rem 3rem; }
+			header { margin-bottom: 1.5rem; }
+			.logo { gap: 10px; }
+			.eye-icon { width: 38px; height: 38px; }
+			h1 { font-size: 1.2rem; }
+			.subtitle { font-size: .78rem; }
+			.card, .result-card { padding: 1.1rem .9rem; border-radius: 12px; }
+
+			/* 入力表 → 1投てき = 1枚のカード (2列×2段) */
+			#throw-table thead { display: none; }
+			#throw-table, #throw-table tbody { display: block; width: 100%; }
+			#throw-table tbody tr {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				grid-template-areas: "num del" "px pz" "lx lz";
+				gap: .55rem .7rem;
+				background: var(--surf2);
+				border: 1px solid var(--border);
+				border-radius: 10px;
+				padding: .6rem .75rem .8rem;
+				margin-bottom: .7rem;
+			}
+			#throw-table tbody tr:last-child { border-bottom: 1px solid var(--border); }
+			#throw-table tbody td { padding: 0; display: block; }
+			#throw-table .td-num {
+				grid-area: num; width: auto; align-self: center;
+				font-size: .82rem; color: var(--cyan);
+			}
+			#throw-table .td-num::before { content: '投てき #'; color: var(--text3); }
+			#throw-table .td-del { grid-area: del; justify-self: end; }
+			#throw-table .td-coord:nth-child(2) { grid-area: px; }
+			#throw-table .td-coord:nth-child(3) { grid-area: pz; }
+			#throw-table .td-coord:nth-child(4) { grid-area: lx; }
+			#throw-table .td-coord:nth-child(5) { grid-area: lz; }
+			#throw-table .td-coord::before {
+				content: attr(data-label);
+				display: block;
+				font-family: var(--font-body);
+				font-size: .7rem;
+				color: var(--text2);
+				margin-bottom: .2rem;
+			}
+			.td-coord input {
+				width: 100%;
+				/* 16px 未満だと iPhone で入力時に画面が拡大されるため 16px にする */
+				font-size: 16px;
+				padding: .45rem .55rem;
+				background: var(--bg);
+				border: 1px solid var(--border2);
+				border-radius: 6px;
+			}
+			.td-coord input:focus { border-color: var(--accent); }
+			.del-btn { padding: 6px 12px; font-size: 1.05rem; }
+			.throw-table-wrap { overflow: visible; }
+
+			/* ボタン: 押しやすい大きさに */
+			.btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+			.btn { justify-content: center; padding: .75rem .5rem; font-size: .9rem; }
+			.btn-calc { grid-column: 1 / -1; order: -1; padding: .85rem; font-size: 1rem; }
+
+			/* 計算結果 */
+			.result-top { flex-wrap: nowrap; gap: .9rem; }
+			.portal-icon { width: 44px; height: 44px; }
+			.result-label { font-size: .68rem; }
+			.result-value { font-size: 1.2rem; letter-spacing: .01em; word-break: break-all; }
+			.result-meta { grid-template-columns: 1fr 1fr; gap: .5rem; }
+			.meta-item { padding: .55rem .7rem; }
+			.meta-value { font-size: .85rem; }
+
+			/* 詳細データ表 */
+			.debug-table { font-size: .72rem; }
+			.debug-table th, .debug-table td { padding: .35rem .4rem; }
+			.angle-badge { font-size: .7rem; white-space: nowrap; }
+
+			.help-text { font-size: .76rem; }
+			.credit-name { font-size: 1.2rem; }
 		}
 	</style>
 </head>
@@ -320,6 +397,7 @@
 				<span id="debug-arrow">▶</span> 各投てきの詳細データを表示
 			</button>
 			<div class="debug-content" id="debug-content">
+				<div class="debug-wrap">
 				<table class="debug-table">
 					<thead>
 						<tr>
@@ -331,6 +409,7 @@
 					</thead>
 					<tbody id="debug-body"></tbody>
 				</table>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -406,11 +485,11 @@
 		tr.id = 'row-' + n;
 		tr.innerHTML =
 			'<td class="td-num">' + displayNum + '</td>' +
-			'<td class="td-coord"><input type="number" id="px' + n + '" placeholder="例: -500.3" step="any" value="' + (px !== undefined ? px : '') + '"></td>' +
-			'<td class="td-coord"><input type="number" id="pz' + n + '" placeholder="例: 200.8"  step="any" value="' + (pz !== undefined ? pz : '') + '"></td>' +
-			'<td class="td-coord"><input type="number" id="lx' + n + '" placeholder="例: -490.1" step="any" value="' + (lx !== undefined ? lx : '') + '"></td>' +
-			'<td class="td-coord"><input type="number" id="lz' + n + '" placeholder="例: 215.5"  step="any" value="' + (lz !== undefined ? lz : '') + '"></td>' +
-			'<td><button class="del-btn" onclick="delRow(' + n + ')" title="削除">✕</button></td>';
+			'<td class="td-coord" data-label="投てき前 X"><input type="number" id="px' + n + '" placeholder="例: -500.3" step="any" value="' + (px !== undefined ? px : '') + '"></td>' +
+			'<td class="td-coord" data-label="投てき前 Z"><input type="number" id="pz' + n + '" placeholder="例: 200.8"  step="any" value="' + (pz !== undefined ? pz : '') + '"></td>' +
+			'<td class="td-coord" data-label="落下地点 X"><input type="number" id="lx' + n + '" placeholder="例: -490.1" step="any" value="' + (lx !== undefined ? lx : '') + '"></td>' +
+			'<td class="td-coord" data-label="落下地点 Z"><input type="number" id="lz' + n + '" placeholder="例: 215.5"  step="any" value="' + (lz !== undefined ? lz : '') + '"></td>' +
+			'<td class="td-del"><button class="del-btn" onclick="delRow(' + n + ')" title="削除">✕</button></td>';
 		tbody.appendChild(tr);
 	}
 
